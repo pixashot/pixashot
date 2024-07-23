@@ -1,11 +1,14 @@
 import os
 import tempfile
-from playwright.sync_api import sync_playwright
+import time
+
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 
 class ScreenshotCaptureService:
     def __init__(self):
         self.proxy_config = None
+        self.js_file_path = os.path.join(os.path.dirname(__file__), 'page-utils.js')
 
     def setup_proxy(self, proxy_server, proxy_port, proxy_username=None, proxy_password=None):
         self.proxy_config = {
@@ -72,49 +75,26 @@ class ScreenshotCaptureService:
                 page.wait_for_load_state('networkidle', timeout=30000)
                 print('Page loaded!')
 
-                # Disable smooth scrolling
-                page.evaluate("""
-                    () => {
-                        const style = document.createElement('style');
-                        style.innerHTML = `* { scroll-behavior: auto !important; }`;
-                        document.head.appendChild(style);
-                    }
-                """)
+                # Load and execute the JavaScript file
+                with open(self.js_file_path, 'r') as file:
+                    js_content = file.read()
+                    page.evaluate(js_content)
 
-                # Set all images to eager loading and wait for them to load
-                page.evaluate("""
-                    () => {
-                        const images = document.querySelectorAll('img');
-                        images.forEach(img => {
-                            img.loading = 'eager';
-                            if (img.complete) return;
-                            img.src = img.src;
-                        });
+                # Use the loaded JavaScript functions
+                page.evaluate('pageUtils.disableSmoothScrolling()')
+                page.evaluate('pageUtils.waitForAllImages()')
 
-                        return Promise.all(Array.from(images)
-                            .filter(img => !img.complete)
-                            .map(img => new Promise((resolve) => {
-                                img.onload = img.onerror = resolve;
-                            }))
-                        );
-                    }
-                """)
+                print('All images loaded')
 
-                print('All images set to eager loading and loaded')
+                # Scroll to bottom of the page
+                print('Scrolling to bottom of page...')
+                self.scroll_to_bottom(page, max_scrolls=5, scroll_timeout=10)
 
-                # Scroll through the page
-                last_scroll_height = 0
-                while True:
-                    scroll_height = self.get_scroll_height(page)
-                    if scroll_height == last_scroll_height:
-                        break
+                # Get the full height of the page after scrolling
+                full_height = page.evaluate('pageUtils.getFullHeight()')
 
-                    for position in range(0, scroll_height, height):
-                        self.scroll_to(page, position)
-                        page.wait_for_timeout(500)
-
-                    last_scroll_height = scroll_height
-                    page.wait_for_timeout(1000)
+                # Set the viewport to the full height of the page
+                page.set_viewport_size({'width': width, 'height': full_height})
 
                 # Scroll back to top
                 self.scroll_to(page, 0)
@@ -124,9 +104,36 @@ class ScreenshotCaptureService:
                 page.screenshot(path=output_path, full_page=True)
 
                 print('Screenshot captured!')
+            except PlaywrightTimeoutError:
+                print('Timeout occurred, but continuing with screenshot capture')
+                page.screenshot(path=output_path, full_page=True)
             except Exception as error:
                 print('Error during screenshot capture:', error)
                 raise
             finally:
                 print('Closing browser.')
                 page.close()
+
+    def scroll_to_bottom(self, page, max_scrolls=10, scroll_timeout=30):
+        previous_height = 0
+        scroll_count = 0
+        start_time = time.time()
+
+        while scroll_count < max_scrolls and (time.time() - start_time) < scroll_timeout:
+            current_height = page.evaluate('() => document.body.scrollHeight')
+            if current_height == previous_height:
+                print("Reached the bottom of the page or no new content loaded.")
+                break
+
+            page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+            page.wait_for_timeout(2000)  # Wait for 2 seconds to allow content to load
+
+            scroll_count += 1
+            previous_height = current_height
+
+            print(f"Scroll {scroll_count}/{max_scrolls} completed. Current height: {current_height}")
+
+        if scroll_count == max_scrolls:
+            print(f"Reached maximum number of scrolls ({max_scrolls}).")
+        elif (time.time() - start_time) >= scroll_timeout:
+            print(f"Scroll operation timed out after {scroll_timeout} seconds.")
