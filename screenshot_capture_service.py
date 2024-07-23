@@ -6,6 +6,9 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 
 
 class ScreenshotCaptureService:
+
+    MAX_VIEWPORT_HEIGHT = 16384
+
     def __init__(self):
         self.proxy_config = None
         self.js_file_path = os.path.join(os.path.dirname(__file__), 'page-utils.js')
@@ -62,6 +65,7 @@ class ScreenshotCaptureService:
 
     def scroll_to(self, page, target_position):
         page.evaluate(f"window.scrollTo(0, {target_position})")
+        page.wait_for_timeout(100)  # Short pause after each scroll
 
     def capture_screenshot(self, url, output_path, width=1280, height=1280, pixel_density=2.0):
         with self.init() as browser:
@@ -88,10 +92,11 @@ class ScreenshotCaptureService:
 
                 # Scroll to bottom of the page
                 print('Scrolling to bottom of page...')
-                self.scroll_to_bottom(page, max_scrolls=5, scroll_timeout=10)
+                self.scroll_to_bottom(page, max_scrolls=10, scroll_timeout=30)
 
                 # Get the full height of the page after scrolling
                 full_height = page.evaluate('pageUtils.getFullHeight()')
+                full_height = min(full_height, self.MAX_VIEWPORT_HEIGHT)
 
                 # Set the viewport to the full height of the page
                 page.set_viewport_size({'width': width, 'height': full_height})
@@ -125,7 +130,11 @@ class ScreenshotCaptureService:
                 print("Reached the bottom of the page or no new content loaded.")
                 break
 
-            page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+            # Scroll in smaller increments
+            for i in range(0, current_height - previous_height, 200):
+                self.scroll_to(page, previous_height + i)
+                page.wait_for_timeout(100)  # Short pause between scrolls
+
             page.wait_for_timeout(2000)  # Wait for 2 seconds to allow content to load
 
             scroll_count += 1
