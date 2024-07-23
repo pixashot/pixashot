@@ -2,13 +2,18 @@ import os
 import tempfile
 from playwright.sync_api import sync_playwright
 
+
 class ScreenshotCaptureService:
-    def __init__(self, proxy_server, proxy_port, proxy_username, proxy_password, use_proxy=False):
-        self.proxy_server = proxy_server
-        self.proxy_port = proxy_port
-        self.proxy_username = proxy_username
-        self.proxy_password = proxy_password
-        self.use_proxy = use_proxy
+    def __init__(self):
+        self.proxy_config = None
+
+    def setup_proxy(self, proxy_server, proxy_port, proxy_username=None, proxy_password=None):
+        self.proxy_config = {
+            'server': f"{proxy_server}:{proxy_port}",
+        }
+        if proxy_username and proxy_password:
+            self.proxy_config['username'] = proxy_username
+            self.proxy_config['password'] = proxy_password
 
     def init(self):
         temp_dir = tempfile.gettempdir()
@@ -21,12 +26,6 @@ class ScreenshotCaptureService:
 
         disable_extensions_arg = f"--disable-extensions-except={','.join(extensions)}"
         load_extension_args = [f"--load-extension={ext}" for ext in extensions]
-
-        proxy = {
-            'server': f"{self.proxy_server}:{self.proxy_port}",
-            'username': self.proxy_username,
-            'password': self.proxy_password,
-        } if self.use_proxy else None
 
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
@@ -45,7 +44,7 @@ class ScreenshotCaptureService:
                     '--disable-gpu-rasterization',
                     '--no-sandbox'
                 ],
-                proxy=proxy
+                proxy=self.proxy_config
             )
             return browser
 
