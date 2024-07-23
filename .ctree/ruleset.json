@@ -1,0 +1,15 @@
+{
+    "rules": [
+        [
+            ["path", "notStartsWith", "extensions/"]
+        ]
+    ],
+    "always": {
+        "include": [
+            "requirements.txt",
+            "Dockerfile",
+            "app.py",
+            "screenshot_capture_service.py"
+        ]
+    }
+}

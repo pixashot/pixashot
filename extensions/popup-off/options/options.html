@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="../css/options.css">
+        <title>PopUpOFF settings page</title>
+    </head>
+    <body>
+        <section class="options__section donation hidden">
+            <div class="donation__wrap">
+                <img
+                    src="chrome-extension://ihndbndjoiephkpbfbmnmocopeagjpck/images/stop_ads.png"
+                    alt="Stop ads!"
+                    width="80"
+                    height="80"
+                    class="donationImage"
+                >
+
+                <div>
+                    <h2 class="donation__title options_text">
+                        Help us make internet better for you!
+                    </h2>
+
+                    <p class="options__desc options_text">
+                        Our commitment to reducing cookies and ad popups anxiety is possible
+                        thanks to donations from people like you.
+                    </p>
+
+                    <p class="options__desc options_text">
+                        Can we count on you?
+                    </p>
+                </div>
+            </div>
+
+            <div class="donation__btns">
+                <a href="#" class="donationNo">
+                    No
+                </a>
+                |
+                <a href="https://popupoff.org/?source=chrome&utm_campaign=options_page&utm_content=donation_banner#donate" class="donationYes">
+                    Yes, I want to help!
+                </a>
+            </div>
+        </section>
+        <section class="options__section">
+            <h2 class="options__header options_text">
+                Useful links
+            </h2>
+            <p class="options__desc options_text">
+                Info:
+                <a target="_blank" href="https://popupoff.org/how-to-use?source=chrome&utm_campaign=options_page" class="options__link link">Tutorial</a>,
+                <a target="_blank" href="https://romanisthere.github.io/posts/prev-cont-2/" class="options__link link">Anti-paid explained</a>,
+                <a target="_blank" href="https://popupoff.org?source=chrome&utm_campaign=options_page" class="options__link link">Website</a>,
+                <a target="_blank" href="https://github.com/RomanistHere/PopUpOFF" class="options__link link">GitHub</a>,
+                <a target="_blank" href="https://popupoff.org/changelog?source=chrome&utm_campaign=options_page" class="options__link link">Changelog</a>,
+                <a target="_blank" href="https://youtu.be/3jTKRCxLyPE" class="options__link link">Demo</a>
+                <br>
+                News:
+                <a target="_blank" href="https://twitter.com/RomanistHere" class="options__link link">Twitter</a>,
+                <a target="_blank" href="https://t.me/BetterWebNews" class="options__link link">Telegram</a>,
+                <a target="_blank" href="https://www.youtube.com/channel/UCApGcALt2N9U7NCnbC43OxQ" class="options__link link">YouTube</a>
+                <br>
+                Report bugs:
+                <a target="_blank" href="https://popupoff.org/submit-issue?source=chrome&utm_campaign=options_page" class="options__link link">Directly</a>,
+                <a target="_blank" href="https://github.com/RomanistHere/PopUpOFF/issues" class="options__link link">GitHub issues</a>
+                <br>
+                Personal:
+                <a target="_blank" href="https://popupoff.org/?source=chrome&utm_campaign=options_page#donate" class="options__link link">Donate</a>,
+                <a target="_blank" href="https://romanisthere.dev/md/about-me?source=chrome&utm_campaign=options_page" class="options__link link">My Website</a>,
+                <a target="_blank" href="mailto:romanisthere@pm.me" class="options__link link">My email</a> - I'm very friendly, say "Hi"!
+
+            </p>
+        </section>
+
+        <h2 class="options__title options_text">
+            Basic settings:
+        </h2>
+
+        <section class="options__section">
+            <h2 class="options__header options_text">
+                Active by default (Automode)
+            </h2>
+
+            <p class="options__desc options_text">
+                Below you can specify what mode would be active by default.
+                Recommended options are <span class="options_text-col">Delicate</span>,
+                <span class="options_text-col">Moderate</span>
+                and <span class="options_text-col">Turn OFF</span>.
+            </p>
+
+            <fieldset class="options__set auto">
+                <legend>Select mode that will be active on new sites:</legend>
+
+                <div>
+                    <input type="radio" id="auto_dormant" name="auto" value="whitelist" checked>
+                    <label for="auto_dormant">Turn OFF - it's a whitelist option (PopUpOFF doesn't remove anything)</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="auto_moderate" name="auto" value="easyModeActive">
+                    <label for="auto_moderate">Moderate</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="auto_static" name="auto" value="staticActive">
+                    <label for="auto_static">Delicate</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="auto_aggressive" name="auto" value="hardModeActive">
+                    <label for="auto_aggressive">Aggressive</label>
+                </div>
+            </fieldset>
+        </section>
+
+        <section class="options__section">
+            <h2 class="options__header options_text">
+                Statistics
+            </h2>
+            <p class="options__desc options_text">
+                Current usage:
+            </p>
+            <ul>
+                <li class="options__desc options_text">
+                    <span class="statsCount options_text-col">0</span> removed elements
+                </li>
+                <li class="options__desc options_text">
+                    <span class="statsArea options_text-col">0</span> is total (cleaned) area measured in your screen sizes
+                </li>
+                <li class="options__desc options_text">
+                    Time saved approximately: <span class="statsTime options_text-col">0</span>
+                </li>
+            </ul>
+            <p class="options__desc options_text">
+                No one but you have access to your stats... Unless you share it <span class="options_text-col">#popupoff</span>
+            </p>
+            <div class="options__desc">
+                <a href="#" class="options__btn stats">
+                    <div class="cross">
+                        <span class="cross__item cross__one"></span>
+                        <span class="cross__item cross__two"></span>
+                    </div>
+                    <span class="options__label">Collect and display your stats</span>
+                </a>
+            </div>
+        </section>
+
+        <h2 class="options__title options_text ">
+            Advanced settings:
+        </h2>
+
+        <section class="options__section">
+            <h2 class="options__header options_text">
+                Keyboard shortcut
+            </h2>
+
+            <p class="options__desc options_text">
+                Currently you can not change the shortcut itself. It is
+                <span class="options_text-col">"Alt + x"</span> or <span class="options_text-col">"Cmd + Shift + x"</span>
+                (Hi Apple). But here you can choose what mode is going to be active after you press the combination.
+            </p>
+
+            <fieldset class="options__set kbrd">
+                <legend>Select what mode will activate when you press shortcut:</legend>
+
+                <div>
+                    <input type="radio" id="kbrd_disabled" name="kbrd" value="null" checked>
+                    <label for="kbrd_disabled">Disabled (no mode will activate)</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="kbrd_dormant" name="kbrd" value="whitelist">
+                    <label for="kbrd_dormant">Turn OFF</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="kbrd_moderate" name="kbrd" value="easyModeActive">
+                    <label for="kbrd_moderate">Moderate</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="kbrd_static" name="kbrd" value="staticActive">
+                    <label for="kbrd_static">Delicate</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="kbrd_aggressive" name="kbrd" value="hardModeActive">
+                    <label for="kbrd_aggressive">Aggressive</label>
+                </div>
+            </fieldset>
+        </section>
+
+        <section class="options__section">
+            <h2 class="options__header options_text">
+                Delicate mode
+            </h2>
+
+            <p class="options__desc options_text">
+                Kudos to Davide Repetto for sharing idea of this mode.
+            </p>
+
+            <p class="options__desc options_text">
+                This mode reassigns CSS position rule for "fixed" elements. You can pick, what rule will be assigned.
+            </p>
+
+            <p class="options__desc options_text">
+                If you're not familiar with CSS, here's a difference:
+                <span class="options_text-col">Absolute</span> will "fix" overlays where they first appeared (on top of content).
+                <span class="options_text-col">Relative</span> and <span class="options_text-col">Static</span>
+                will move sticky elements somewhere else, usually the top of bottom of the page.
+            </p>
+
+            <fieldset class="options__set delicate">
+                <legend>Select "position" CSS rule:</legend>
+
+                <div>
+                    <input type="radio" id="relative" name="delicate" value="relative" checked>
+                    <label for="relative">Relative</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="static" name="delicate" value="static">
+                    <label for="static">Static</label>
+                </div>
+
+                <div>
+                    <input type="radio" id="absolute" name="delicate" value="absolute">
+                    <label for="absolute">Absolute</label>
+                </div>
+            </fieldset>
+        </section>
+
+        <section class="options__section">
+            <h2 class="options__header options_text">
+                Context menu
+            </h2>
+            <p class="options__desc options_text">
+                Configure if you want to see PopUpOFF submenu on right click.
+            </p>
+            <div class="options__desc">
+                <a href="#" class="options__btn ctxMenu">
+                    <div class="cross">
+                        <span class="cross__item cross__one"></span>
+                        <span class="cross__item cross__two"></span>
+                    </div>
+                    <span class="options__label">List PopUpOFF in context menu</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="options__section">
+            <h2 class="options__header options_text">
+                Export / import configuration
+            </h2>
+            <p class="options__desc options_text">
+                Websites, stats and settings preferences. Useful when switching to another browser or device.
+            </p>
+            <input type="file" accept=".json" class="importInput hidden"/>
+            <div class="options__desc">
+                <a href="#" class="options__button exportBtn">Export</a>
+                <a href="#" class="options__button importBtn">Import</a>
+            </div>
+        </section>
+
+        <section class="options__section">
+            <h2 class="options__header options_text">
+                Reset to default (delete your progress)
+            </h2>
+            <p class="options__desc options_text">
+                Something is not working properly? Seeing errors or "undefined"? I'm sorry, give the buttons below a try:
+            </p>
+            <div class="options__desc">
+                <a href="#" data-label="stats" class="options__button">Stats only</a>
+                <a href="#" data-label="settings" class="options__button">Settings only</a>
+                <a href="#" data-label="all" class="options__button">Everything</a>
+            </div>
+            <p class="options__desc options_text">
+                I would be happy if you contacted me about it as well though :)
+            </p>
+        </section>
+
+        <div class="popup">
+            Are you sure?
+            <div class="popup__pick">
+                <a href="#" class="popup__link delete">Yes, reset</a>
+                <a href="#" class="popup__link notDelete">No</a>
+            </div>
+        </div>
+
+        <script type="module" src="options.js"></script>
+    </body>
+</html>
