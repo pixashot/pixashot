@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from flask import Flask, abort, after_this_request, request, send_file
 
 from screenshot_capture_service import ScreenshotCaptureService
+from screenshot_request import ScreenshotRequest
 
 app = Flask(__name__)
 
@@ -47,19 +48,16 @@ def auth_token_middleware():
 
 @app.route('/screenshot', methods=['POST'])
 def screenshot():
-    data = request.json
-    target_url = data.get('url')
-    window_width = data.get('windowWidth', 1280)
-    window_height = data.get('windowHeight', 720)
-
-    if not target_url:
-        return {'status': 'error', 'message': 'Missing required parameter: url'}, 400
+    try:
+        data = ScreenshotRequest(**request.json)
+    except ValueError as e:
+        return {'status': 'error', 'message': str(e)}, 400
 
     try:
-        hostname = urlparse(target_url).hostname.replace('.', '-')
+        hostname = urlparse(str(data.url)).hostname.replace('.', '-')
         screenshot_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.png"
 
-        capture_service.capture_screenshot(target_url, screenshot_path, window_width, window_height, 2.0)
+        capture_service.capture_screenshot(str(data.url), screenshot_path, data.windowWidth, data.windowHeight, 2.0)
 
         print(f"Returning screenshot from {screenshot_path}")
 
