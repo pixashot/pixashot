@@ -11,7 +11,8 @@ class ScreenshotCaptureService:
 
     def __init__(self):
         self.proxy_config = None
-        self.js_file_path = os.path.join(os.path.dirname(__file__), 'page-utils.js')
+        self.js_file_path = os.path.join(os.path.dirname(__file__), 'js/page-utils.js')
+        self.dynamic_content_detector_path = os.path.join(os.path.dirname(__file__), 'js/dynamic-content-detector.js')
 
     def setup_proxy(self, proxy_server, proxy_port, proxy_username=None, proxy_password=None):
         self.proxy_config = {
@@ -67,6 +68,23 @@ class ScreenshotCaptureService:
         page.evaluate(f"window.scrollTo(0, {target_position})")
         page.wait_for_timeout(100)  # Short pause after each scroll
 
+    def wait_for_page_load(self, page, timeout=5000):
+        try:
+            # Wait for the initial page load
+            page.wait_for_load_state('networkidle', timeout=timeout)
+
+            # Load and execute our custom JavaScript
+            with open(self.dynamic_content_detector_path, 'r') as file:
+                js_content = file.read()
+                page.evaluate(js_content)
+
+            # Call our custom function and wait for it to resolve
+            page.evaluate('detectDynamicContentLoading(1000, 5)')
+
+            print("Dynamic content finished loading")
+        except Exception as e:
+            print(f"Timeout or error waiting for dynamic content: {e}")
+
     def capture_screenshot(self, url, output_path, width=1280, height=1280, pixel_density=2.0):
         with self.init() as browser:
             page = browser.new_page(viewport={'width': width, 'height': height}, device_scale_factor=pixel_density)
@@ -74,9 +92,10 @@ class ScreenshotCaptureService:
             try:
                 print(f"Loading {url}...")
                 self.goto_with_timeout(page, url)
-                print('Finished loading!')
+                print('Initial page load complete!')
 
-                page.wait_for_load_state('networkidle', timeout=30000)
+                # Use our new method to wait for dynamic content
+                self.wait_for_page_load(page)
                 print('Page loaded!')
 
                 # Load and execute the JavaScript file
