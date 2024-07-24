@@ -8,10 +8,10 @@ import traceback
 from logging.config import dictConfig
 from urllib.parse import urlparse
 
-from flask import Flask, abort, after_this_request, request, send_file
+from flask import Flask, abort, after_this_request, request, send_file, make_response
 
 from config import get_logging_config
-from screenshot_request import ScreenshotRequest
+from capture_request import CaptureRequest
 from capture_service import CaptureService
 from exceptions import ScreenshotServiceException
 
@@ -40,7 +40,7 @@ def auth_token_middleware():
 @app.route('/capture', methods=['POST'])
 def screenshot():
     try:
-        options = ScreenshotRequest(**request.json)
+        options = CaptureRequest(**request.json)
     except ValueError as e:
         app.logger.error(f"Invalid request parameters: {str(e)}")
         return {'status': 'error', 'message': str(e)}, 400

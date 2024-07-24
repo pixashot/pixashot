@@ -2,7 +2,7 @@ from typing import Optional, List
 from pydantic import BaseModel, HttpUrl, Field
 
 
-class ScreenshotRequest(BaseModel):
+class CaptureRequest(BaseModel):
     url: Optional[HttpUrl] = Field(None, description="URL of the site to take a screenshot of")
     html_content: Optional[str] = Field(None, description="HTML content to render and capture")
     window_width: Optional[int] = Field(1280, description="The width of the browser viewport (pixels)")
