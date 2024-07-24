@@ -89,16 +89,11 @@ class BrowserController:
             logger.warning(f"Timeout waiting for selector '{selector}': {timeout}ms")
             raise ElementNotFoundException(f"Selector '{selector}' not found on the page within {timeout}ms")
 
-    def prepare_for_full_page_screenshot(self, page: Page, window_width: int):
+    def prepare_for_full_page_screenshot(self, page: Page, window_width: int, window_height: int):
         try:
             page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
             self.wait_for_network_idle(page, self.NETWORK_IDLE_TIMEOUT_MS)
-
-            full_height = page.evaluate(
-                'Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)')
-            full_height = min(full_height, self.MAX_VIEWPORT_HEIGHT)
-
-            self._set_viewport_and_scroll(page, window_width, full_height)
+            self._set_viewport_and_scroll(page, window_width, window_height)
         except Exception as e:
             logger.error(f"Error preparing for full page screenshot: {str(e)}")
             raise BrowserException(f"Failed to prepare for full page screenshot: {str(e)}")

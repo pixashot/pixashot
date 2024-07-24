@@ -26,7 +26,7 @@ class ContextCreator:
     def _create_context_options(self, options, user_data_dir, extensions):
         context_options = {
             "user_data_dir": user_data_dir,
-            "headless": False if os.environ.get('DISPLAY') else True,  # Use non-headless if DISPLAY is set
+            "headless": False if os.environ.get('DISPLAY') else True,
             "ignore_https_errors": options.ignore_https_errors,
             "device_scale_factor": options.pixel_density,
             "viewport": {
