@@ -11,7 +11,7 @@ import io
 logger = logging.getLogger(__name__)
 
 
-class ScreenshotCaptureService:
+class CaptureService:
     def __init__(self):
         self.context_creator = ContextCreator()
         self.browser_controller = BrowserController()

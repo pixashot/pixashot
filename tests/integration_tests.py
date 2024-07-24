@@ -24,8 +24,8 @@ class TestPixashotIntegration(unittest.TestCase):
             "full_page": False
         }
 
-        # Make a POST request to the /screenshot endpoint
-        response = self.app.post('/screenshot',
+        # Make a POST request to the /capture endpoint
+        response = self.app.post('/capture',
                                  data=json.dumps(test_data),
                                  content_type='application/json')
 
@@ -48,8 +48,8 @@ class TestPixashotIntegration(unittest.TestCase):
             "full_page": True
         }
 
-        # Make a POST request to the /screenshot endpoint
-        response = self.app.post('/screenshot',
+        # Make a POST request to the /capture endpoint
+        response = self.app.post('/capture',
                                  data=json.dumps(test_data),
                                  content_type='application/json')
 
@@ -68,8 +68,8 @@ class TestPixashotIntegration(unittest.TestCase):
             "format": "png"
         }
 
-        # Make a POST request to the /screenshot endpoint
-        response = self.app.post('/screenshot',
+        # Make a POST request to the /capture endpoint
+        response = self.app.post('/capture',
                                  data=json.dumps(test_data),
                                  content_type='application/json')
 
@@ -94,8 +94,8 @@ class TestPixashotIntegration(unittest.TestCase):
             "pdf_format": "A4"
         }
 
-        # Make a POST request to the /screenshot endpoint
-        response = self.app.post('/screenshot',
+        # Make a POST request to the /capture endpoint
+        response = self.app.post('/capture',
                                  data=json.dumps(test_data),
                                  content_type='application/json')
 

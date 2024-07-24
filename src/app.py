@@ -12,7 +12,7 @@ from flask import Flask, abort, after_this_request, request, send_file
 
 from config import get_logging_config
 from screenshot_request import ScreenshotRequest
-from screenshot_capture_service import ScreenshotCaptureService
+from capture_service import CaptureService
 from exceptions import ScreenshotServiceException
 
 # Configure logging
@@ -20,8 +20,8 @@ dictConfig(get_logging_config())
 
 app = Flask(__name__)
 
-# Create a single instance of ScreenshotCaptureService
-capture_service = ScreenshotCaptureService()
+# Create a single instance of CaptureService
+capture_service = CaptureService()
 
 
 @app.before_request
