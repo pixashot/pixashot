@@ -44,3 +44,11 @@ class ScreenshotRequest(BaseModel):
     # Additional options that could be easily implemented
     full_page: Optional[bool] = Field(False, description="Take a screenshot of the full page")
     omit_background: Optional[bool] = Field(False, description="Render a transparent background for the image")
+
+    # PDF-specific options
+    pdf_print_background: Optional[bool] = Field(True, description="Print background graphics in PDF")
+    pdf_scale: Optional[float] = Field(1.0, description="Scale of the webpage rendering")
+    pdf_page_ranges: Optional[str] = Field(None, description="Paper ranges to print, e.g., '1-5, 8, 11-13'")
+    pdf_format: Optional[str] = Field(None, description="Paper format, e.g., 'A4', 'Letter'")
+    pdf_width: Optional[str] = Field(None, description="Paper width, accepts values labeled with units")
+    pdf_height: Optional[str] = Field(None, description="Paper height, accepts values labeled with units")
