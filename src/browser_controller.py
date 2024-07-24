@@ -29,18 +29,34 @@ class BrowserController:
 
     def prepare_page(self, page: Page, options):
         try:
-            # self.inject_scripts(page)
             self.prevent_horizontal_overflow(page)
             if options.dark_mode:
                 self.apply_dark_mode(page)
             self.wait_for_network_idle(page, options.wait_for_timeout)
+
+            # Execute custom JS if provided
             if options.custom_js:
                 self.execute_custom_js(page, options.custom_js)
+
+            # Wait for any specified selector
             if options.wait_for_selector:
                 self.wait_for_selector(page, options.wait_for_selector, options.wait_for_timeout)
+
+            # Final wait to ensure dynamic content is loaded
+            page.wait_for_timeout(500)
+
+            logger.info('Page prepared successfully')
         except Exception as e:
             logger.error(f"Error preparing page: {str(e)}")
             raise BrowserException(f"Failed to prepare page: {str(e)}")
+
+    def wait_for_network_idle(self, page: Page, timeout: int):
+        try:
+            page.wait_for_load_state('networkidle', timeout=timeout)
+        except TimeoutError as e:
+            logger.warning(f"Timeout waiting for network idle: {timeout}ms")
+            # Log a warning and continue
+            logger.warning("Proceeding with capture despite network not being completely idle")
 
     def inject_scripts(self, page: Page):
         try:
@@ -70,13 +86,6 @@ class BrowserController:
         except Exception as e:
             logger.error(f"Error preventing horizontal overflow: {str(e)}")
             raise JavaScriptExecutionException(f"Failed to prevent horizontal overflow: {str(e)}")
-
-    def wait_for_network_idle(self, page: Page, timeout: int):
-        try:
-            page.wait_for_load_state('networkidle', timeout=timeout)
-        except TimeoutError as e:
-            logger.warning(f"Timeout waiting for network idle: {timeout}ms")
-            raise NetworkException(f"Timeout waiting for network idle: {timeout}ms")
 
     def execute_custom_js(self, page: Page, custom_js: str):
         try:
