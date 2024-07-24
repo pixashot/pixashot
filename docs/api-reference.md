@@ -24,7 +24,7 @@ Example payload:
 }
 ```
 
-For a complete list of available options, see the [Configuration Options](configuration-options.md) documentation.
+For a complete list of available options, see the [Configuration Options](configuration.md) documentation.
 
 ## Response
 

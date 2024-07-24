@@ -13,4 +13,4 @@ Pixashot offers a comprehensive set of features for capturing high-quality scree
 - Configurable image quality and pixel density
 - Docker support for easy deployment
 
-For detailed information on how to use these features, please refer to the [Configuration Options](configuration-options.md) and [Advanced Features](advanced-features.md) documentation.
+For detailed information on how to use these features, please refer to the [Configuration Options](configuration.md) and [Advanced Features](advanced.md) documentation.

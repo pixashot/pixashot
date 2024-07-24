@@ -28,7 +28,7 @@ curl -X POST http://localhost:8080/screenshot \
          }'
 ```
 
-For a complete list of configuration options, see the [Configuration Options](configuration-options.md) documentation.
+For a complete list of configuration options, see the [Configuration Options](configuration.md) documentation.
 
 ## Security Considerations
 
@@ -36,4 +36,4 @@ For a complete list of configuration options, see the [Configuration Options](co
 - Be cautious when allowing custom JavaScript injection, as it can potentially expose sensitive information.
 - When deploying, ensure proper firewall rules and access controls are in place.
 
-For more advanced usage and features, please refer to the [Advanced Features](advanced-features.md) documentation.
+For more advanced usage and features, please refer to the [Advanced Features](advanced.md) documentation.

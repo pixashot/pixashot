@@ -33,4 +33,4 @@ Pixashot offers a wide range of configuration options to customize the screensho
 - `image_quality` (int, optional, default: 80): Image quality for formats that support it (JPEG, WebP). Range: 0-100.
 - `pixel_density` (float, optional, default: 2.0): Device scale factor (DPR) for the screenshot.
 
-For advanced options and features, please refer to the [Advanced Features](advanced-features.md) documentation.
+For advanced options and features, please refer to the [Advanced Features](advanced.md) documentation.

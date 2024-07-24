@@ -39,4 +39,4 @@ You can route requests through a proxy server:
 
 - `timeout` (int, optional, default: 30000): Timeout in milliseconds for the entire screenshot capture operation.
 
-For information on basic configuration options, please refer to the [Configuration Options](configuration-options.md) documentation.
+For information on basic configuration options, please refer to the [Configuration Options](configuration.md) documentation.
