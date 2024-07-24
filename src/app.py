@@ -38,15 +38,12 @@ def auth_token_middleware():
 
 
 @app.route('/capture', methods=['POST'])
-def screenshot():
+def capture():
     try:
         options = CaptureRequest(**request.json)
     except ValueError as e:
         app.logger.error(f"Invalid request parameters: {str(e)}")
         return {'status': 'error', 'message': str(e)}, 400
-
-    if not options.url and not options.html_content:
-        return {'status': 'error', 'message': 'Either url or html_content must be provided'}, 400
 
     try:
         if options.format == 'html':
