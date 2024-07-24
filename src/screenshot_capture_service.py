@@ -3,7 +3,10 @@ import logging
 from playwright.sync_api import sync_playwright
 from context_creator import ContextCreator
 from browser_controller import BrowserController
-from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException
+from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException, \
+    JavaScriptExecutionException, TimeoutException
+from PIL import Image
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,7 @@ class ScreenshotCaptureService:
         try:
             self.browser_controller.prepare_for_full_page_screenshot(page, options.window_width)
             self._take_screenshot(page, output_path, options, full_page=True)
+            self._crop_screenshot_if_necessary(output_path, options.window_width, options.pixel_density)
         except Exception as e:
             logger.error(f"Error capturing full page screenshot: {str(e)}")
             raise ScreenshotServiceException(f"Failed to capture full page screenshot: {str(e)}")
@@ -100,3 +104,17 @@ class ScreenshotCaptureService:
         except Exception as e:
             logger.error(f"Error taking screenshot: {str(e)}")
             raise ScreenshotServiceException(f"Failed to take screenshot: {str(e)}")
+
+    def _crop_screenshot_if_necessary(self, output_path, window_width, pixel_density):
+        try:
+            with Image.open(output_path) as img:
+                target_width = int(window_width * pixel_density)
+                if img.width > target_width:
+                    logger.info(f"Cropping image from {img.width}px to {target_width}px width")
+                    cropped_img = img.crop((0, 0, target_width, img.height))
+
+                    # Save the cropped image in the same format as the original
+                    cropped_img.save(output_path, format=img.format)
+        except Exception as e:
+            logger.error(f"Error cropping screenshot: {str(e)}")
+            raise ScreenshotServiceException(f"Failed to crop screenshot: {str(e)}")

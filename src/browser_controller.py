@@ -29,6 +29,7 @@ class BrowserController:
     def prepare_page(self, page: Page, options):
         try:
             self.inject_scripts(page)
+            self.prevent_horizontal_overflow(page)
             self.wait_for_network_idle(page, options.wait_for_timeout)
             if options.custom_js:
                 self.execute_custom_js(page, options.custom_js)
@@ -48,6 +49,24 @@ class BrowserController:
         except Exception as e:
             logger.error(f"Error injecting scripts: {str(e)}")
             raise JavaScriptExecutionException(f"Failed to inject scripts: {str(e)}")
+
+    def prevent_horizontal_overflow(self, page: Page):
+        try:
+            page.evaluate("""
+                () => {
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        body, html {
+                            max-width: 100vw !important;
+                            overflow-x: hidden !important;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            """)
+        except Exception as e:
+            logger.error(f"Error preventing horizontal overflow: {str(e)}")
+            raise JavaScriptExecutionException(f"Failed to prevent horizontal overflow: {str(e)}")
 
     def wait_for_network_idle(self, page: Page, timeout: int):
         try:
