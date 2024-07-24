@@ -15,23 +15,6 @@ app = Flask(__name__)
 # Create a single instance of ScreenshotCaptureService
 capture_service = ScreenshotCaptureService()
 
-# Set up proxy if environment variables are present
-proxy_server = os.environ.get('PROXY_SERVER')
-proxy_port = os.environ.get('PROXY_PORT')
-proxy_username = os.environ.get('PROXY_USERNAME')
-proxy_password = os.environ.get('PROXY_PASSWORD')
-
-if proxy_server and proxy_port:
-    capture_service.setup_proxy(
-        proxy_server,
-        proxy_port,
-        proxy_username,
-        proxy_password
-    )
-    print("Proxy configured for screenshot capture.")
-else:
-    print("PROXY_SERVER or PROXY_PORT not set. Proceeding without proxy.")
-
 
 @app.before_request
 def auth_token_middleware():
@@ -57,7 +40,25 @@ def screenshot():
         hostname = urlparse(str(data.url)).hostname.replace('.', '-')
         screenshot_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.png"
 
-        capture_service.capture_screenshot(str(data.url), screenshot_path, data.windowWidth, data.windowHeight, 2.0)
+        options = {
+            'windowWidth': data.windowWidth,
+            'windowHeight': data.windowHeight,
+            'pixel_density': data.pixel_density,
+            'proxy_server': data.proxy_server,
+            'proxy_port': data.proxy_port,
+            'proxy_username': data.proxy_username,
+            'proxy_password': data.proxy_password,
+            'ignore_https_errors': data.ignore_https_errors,
+            'full_page': data.full_page,
+            'scroll_to_bottom': data.scroll_to_bottom,
+            'max_scrolls': data.max_scrolls,
+            'scroll_timeout': data.scroll_timeout,
+            'wait_for_timeout': data.wait_for_timeout,
+            'headless': data.headless,
+            'format': data.format,
+        }
+
+        capture_service.capture_screenshot(str(data.url), screenshot_path, options)
 
         print(f"Returning screenshot from {screenshot_path}")
 
@@ -67,7 +68,7 @@ def screenshot():
                 os.remove(screenshot_path)
             return response
 
-        return send_file(screenshot_path, mimetype='image/png')
+        return send_file(screenshot_path, mimetype=f'image/{data.format}')
 
     except Exception as err:
         return {
