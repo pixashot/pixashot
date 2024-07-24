@@ -26,6 +26,7 @@ class ScreenshotRequest(BaseModel):
     # Image options
     image_quality: Optional[int] = Field(80, description="Image quality (0-100)")
     pixel_density: Optional[float] = Field(2.0, description="Device scale factor (DPR)")
+    dark_mode: Optional[bool] = Field(False, description="Enable dark mode for the screenshot")
 
     # Wait options
     wait_for_timeout: Optional[int] = Field(5000, description="Timeout in milliseconds to wait for page load")
