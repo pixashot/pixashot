@@ -56,3 +56,6 @@ class CaptureRequest(BaseModel):
     pdf_format: Optional[str] = Field(None, description="Paper format, e.g., 'A4', 'Letter'")
     pdf_width: Optional[str] = Field(None, description="Paper width, accepts values labeled with units")
     pdf_height: Optional[str] = Field(None, description="Paper height, accepts values labeled with units")
+
+    # New option for blocking media
+    block_media: Optional[bool] = Field(False, description="Block images, video, and audio from loading")

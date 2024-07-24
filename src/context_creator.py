@@ -1,7 +1,6 @@
 import os
 import tempfile
 
-
 class ContextCreator:
     def __init__(self):
         self.extension_dir = os.path.join(os.path.dirname(__file__), 'extensions')
@@ -12,6 +11,9 @@ class ContextCreator:
 
         extensions = self._get_extensions(options)
         context_options = self._create_context_options(options, user_data_dir, extensions)
+
+        if options.block_media:
+            context_options['route_handler'] = self._block_media
 
         return playwright.chromium.launch_persistent_context(**context_options)
 
@@ -26,7 +28,6 @@ class ContextCreator:
     def _create_context_options(self, options, user_data_dir, extensions):
         context_options = {
             "user_data_dir": user_data_dir,
-            # "headless": False if os.environ.get('DISPLAY') else True,
             "headless": True,
             "ignore_https_errors": options.ignore_https_errors,
             "device_scale_factor": options.pixel_density,
@@ -63,3 +64,8 @@ class ContextCreator:
             args.extend([disable_extensions_arg, *load_extension_args])
 
         return args
+
+    def _block_media(self, route, request):
+        if request.resource_type in ['image', 'media', 'font']:
+            return route.abort()
+        return route.continue_()
