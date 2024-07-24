@@ -116,8 +116,8 @@ The `ScreenshotRequest` class in `screenshot_request.py` defines all available o
 
 ### Basic Options
 - `url` (HttpUrl, required): The URL of the webpage to capture.
-- `windowWidth` (int, optional, default: 1280): Width of the browser viewport in pixels.
-- `windowHeight` (int, optional, default: 720): Height of the browser viewport in pixels.
+- `window_width` (int, optional, default: 1280): Width of the browser viewport in pixels.
+- `window_height` (int, optional, default: 720): Height of the browser viewport in pixels.
 - `format` (str, optional, default: "png"): Image format for the screenshot. Options: "png", "jpeg", "webp".
 - `response_type` (str, optional, default: "by_format"): Type of response to return. Options: "by_format" (image file), "empty" (no content), "json" (base64 encoded image).
 

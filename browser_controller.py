@@ -35,7 +35,7 @@ class BrowserController:
     def prepare_for_full_page_screenshot(self, page, window_width):
         # Scroll to the bottom of the page
         page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-        page.wait_for_timeout(1000)  # Wait for any dynamic content to load
+        page.wait_for_timeout(500)  # Wait for any dynamic content to load
 
         # Get the full height of the page
         full_height = page.evaluate('Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)')

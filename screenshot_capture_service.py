@@ -60,11 +60,11 @@ class ScreenshotCaptureService:
             print(f'Waited for selector. Time taken: {time.time() - start_time:.2f}s')
 
     def capture_full_page_screenshot(self, page, output_path, options):
-        self.browser_controller.prepare_for_full_page_screenshot(page, options.windowWidth)
+        self.browser_controller.prepare_for_full_page_screenshot(page, options.window_width)
         self._take_screenshot(page, output_path, options, full_page=True)
 
     def capture_viewport_screenshot(self, page, output_path, options):
-        self.browser_controller.prepare_for_viewport_screenshot(page, options.windowWidth, options.windowHeight)
+        self.browser_controller.prepare_for_viewport_screenshot(page, options.window_width, options.window_height)
         self._take_screenshot(page, output_path, options, full_page=False)
 
     def _take_screenshot(self, page, output_path, options, full_page):

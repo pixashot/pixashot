@@ -4,8 +4,8 @@ from pydantic import BaseModel, HttpUrl, Field
 
 class ScreenshotRequest(BaseModel):
     url: HttpUrl = Field(..., description="URL of the site to take a screenshot of")
-    windowWidth: Optional[int] = Field(1280, description="The width of the browser viewport (pixels)")
-    windowHeight: Optional[int] = Field(720, description="The height of the browser viewport (pixels)")
+    window_width: Optional[int] = Field(1280, description="The width of the browser viewport (pixels)")
+    window_height: Optional[int] = Field(720, description="The height of the browser viewport (pixels)")
 
     # Format options
     format: Optional[str] = Field("png", description="Response format: png, jpeg, webp")
@@ -56,8 +56,8 @@ class ScreenshotRequest(BaseModel):
         schema_extra = {
             "example": {
                 "url": "https://example.com",
-                "windowWidth": 1280,
-                "windowHeight": 720,
+                "window_width": 1280,
+                "window_height": 720,
                 "format": "png",
                 "custom_js": "document.body.style.backgroundColor = 'red';",
                 "use_popup_blocker": True,
