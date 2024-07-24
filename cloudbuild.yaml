@@ -1,0 +1,16 @@
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/pixashot:${_TAG}', '.']
+
+  # Push the Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/pixashot:${_TAG}']
+
+substitutions:
+  _REGION: us-central1  # Default region, can be overridden
+  _REPOSITORY: pixashot-repo  # Default repository name, can be overridden
+  _TAG: latest  # Default tag, can be overridden
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/pixashot:${_TAG}'
