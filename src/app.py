@@ -1,35 +1,22 @@
 import base64
+import logging
 import os
 import random
 import tempfile
 import time
 import traceback
+from logging.config import dictConfig
 from urllib.parse import urlparse
 
 from flask import Flask, abort, after_this_request, request, send_file
 
-from screenshot_capture_service import ScreenshotCaptureService
+from config import get_logging_config
 from screenshot_request import ScreenshotRequest
-import logging
-from logging.config import dictConfig
+from screenshot_capture_service import ScreenshotCaptureService
 from exceptions import ScreenshotServiceException
 
 # Configure logging
-dictConfig({
-    'version': 1,
-    'formatters': {'default': {
-        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
-    }},
-    'handlers': {'wsgi': {
-        'class': 'logging.StreamHandler',
-        'stream': 'ext://flask.logging.wsgi_errors_stream',
-        'formatter': 'default'
-    }},
-    'root': {
-        'level': 'INFO',
-        'handlers': ['wsgi']
-    }
-})
+dictConfig(get_logging_config())
 
 app = Flask(__name__)
 
