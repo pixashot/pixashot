@@ -3,7 +3,8 @@ from pydantic import BaseModel, HttpUrl, Field
 
 
 class ScreenshotRequest(BaseModel):
-    url: HttpUrl = Field(..., description="URL of the site to take a screenshot of")
+    url: Optional[HttpUrl] = Field(None, description="URL of the site to take a screenshot of")
+    html_content: Optional[str] = Field(None, description="HTML content to render and capture")
     window_width: Optional[int] = Field(1280, description="The width of the browser viewport (pixels)")
     window_height: Optional[int] = Field(720, description="The height of the browser viewport (pixels)")
 

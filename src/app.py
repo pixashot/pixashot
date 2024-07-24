@@ -45,11 +45,17 @@ def screenshot():
         app.logger.error(f"Invalid request parameters: {str(e)}")
         return {'status': 'error', 'message': str(e)}, 400
 
+    if not options.url and not options.html_content:
+        return {'status': 'error', 'message': 'Either url or html_content must be provided'}, 400
+
     try:
-        hostname = urlparse(str(options.url)).hostname.replace('.', '-')
+        if options.url:
+            hostname = urlparse(str(options.url)).hostname.replace('.', '-')
+        else:
+            hostname = 'html-content'
         screenshot_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
 
-        capture_service.capture_screenshot(str(options.url), screenshot_path, options)
+        capture_service.capture_screenshot(screenshot_path, options)
 
         @after_this_request
         def remove_file(response):

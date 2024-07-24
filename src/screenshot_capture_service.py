@@ -16,7 +16,7 @@ class ScreenshotCaptureService:
         self.context_creator = ContextCreator()
         self.browser_controller = BrowserController()
 
-    def capture_screenshot(self, url, output_path, options):
+    def capture_screenshot(self, output_path, options):
         max_retries = 3
         retry_delay = 1  # seconds
 
@@ -27,8 +27,12 @@ class ScreenshotCaptureService:
                     page = context.new_page()
 
                     start_time = time.time()
-                    logger.info(f"Loading {url}...")
-                    self.browser_controller.goto_with_timeout(page, url)
+                    if options.url:
+                        logger.info(f"Loading {options.url}...")
+                        self.browser_controller.goto_with_timeout(page, options.url)
+                    else:
+                        logger.info("Loading provided HTML content...")
+                        page.set_content(options.html_content)
                     logger.info(f'Initial page load complete! Time taken: {time.time() - start_time:.2f}s')
 
                     self._prepare_page(page, options)
