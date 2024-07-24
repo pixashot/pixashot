@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright
 from context_creator import ContextCreator
 from browser_controller import BrowserController
+import time
 
 
 class ScreenshotCaptureService:
@@ -14,21 +15,12 @@ class ScreenshotCaptureService:
             page = context.new_page()
 
             try:
+                start_time = time.time()
                 print(f"Loading {url}...")
                 self.browser_controller.goto_with_timeout(page, url)
-                print('Initial page load complete!')
+                print(f'Initial page load complete! Time taken: {time.time() - start_time:.2f}s')
 
-                self.browser_controller.wait_for_page_load(page, options.wait_for_timeout)
-                print('Page loaded!')
-
-                self.browser_controller.inject_and_execute_scripts(page)
-                print('All images loaded')
-
-                if options.custom_js:
-                    page.evaluate(options.custom_js)
-
-                if options.wait_for_selector:
-                    page.wait_for_selector(options.wait_for_selector, timeout=options.wait_for_timeout)
+                self._prepare_page(page, options)
 
                 if options.full_page:
                     print('Capturing full page screenshot...')
@@ -37,13 +29,30 @@ class ScreenshotCaptureService:
                     print('Capturing viewport screenshot...')
                     self.capture_viewport_screenshot(page, output_path, options)
 
-                print('Screenshot captured!')
+                print(f'Screenshot captured! Total time: {time.time() - start_time:.2f}s')
             except Exception as error:
                 print('Error during screenshot capture:', error)
                 raise
             finally:
                 print('Closing context.')
                 context.close()
+
+    def _prepare_page(self, page, options):
+        start_time = time.time()
+
+        self.browser_controller.wait_for_page_load(page, options.wait_for_timeout)
+        print(f'Page loaded! Time taken: {time.time() - start_time:.2f}s')
+
+        self.browser_controller.inject_and_execute_scripts(page)
+        print(f'Scripts injected and executed. Time taken: {time.time() - start_time:.2f}s')
+
+        if options.custom_js:
+            page.evaluate(options.custom_js)
+            print(f'Custom JS executed. Time taken: {time.time() - start_time:.2f}s')
+
+        if options.wait_for_selector:
+            page.wait_for_selector(options.wait_for_selector, timeout=options.wait_for_timeout)
+            print(f'Waited for selector. Time taken: {time.time() - start_time:.2f}s')
 
     def capture_full_page_screenshot(self, page, output_path, options):
         self.browser_controller.prepare_for_full_page_screenshot(page, options.windowWidth)
