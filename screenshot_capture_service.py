@@ -10,32 +10,37 @@ class ScreenshotCaptureService:
         self.browser_controller = BrowserController()
 
     def capture_screenshot(self, url, output_path, options):
-        with sync_playwright() as p:
-            context = self.context_creator.create_context(p, options)
-            page = context.new_page()
+        max_retries = 3
+        retry_delay = 1  # seconds
 
+        for attempt in range(max_retries + 1):
             try:
-                start_time = time.time()
-                print(f"Loading {url}...")
-                self.browser_controller.goto_with_timeout(page, url)
-                print(f'Initial page load complete! Time taken: {time.time() - start_time:.2f}s')
+                with sync_playwright() as p:
+                    context = self.context_creator.create_context(p, options)
+                    page = context.new_page()
 
-                self._prepare_page(page, options)
+                    start_time = time.time()
+                    print(f"Loading {url}...")
+                    self.browser_controller.goto_with_timeout(page, url)
+                    print(f'Initial page load complete! Time taken: {time.time() - start_time:.2f}s')
 
-                if options.full_page:
-                    print('Capturing full page screenshot...')
-                    self.capture_full_page_screenshot(page, output_path, options)
-                else:
-                    print('Capturing viewport screenshot...')
-                    self.capture_viewport_screenshot(page, output_path, options)
+                    self._prepare_page(page, options)
 
-                print(f'Screenshot captured! Total time: {time.time() - start_time:.2f}s')
+                    if options.full_page:
+                        print('Capturing full page screenshot...')
+                        self.capture_full_page_screenshot(page, output_path, options)
+                    else:
+                        print('Capturing viewport screenshot...')
+                        self.capture_viewport_screenshot(page, output_path, options)
+
+                    print(f'Screenshot captured! Total time: {time.time() - start_time:.2f}s')
+                    return
             except Exception as error:
-                print('Error during screenshot capture:', error)
+                print(f'Error during screenshot capture (attempt {attempt + 1}/{max_retries + 1}): {error}')
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+                    continue
                 raise
-            finally:
-                print('Closing context.')
-                context.close()
 
     def _prepare_page(self, page, options):
         start_time = time.time()
