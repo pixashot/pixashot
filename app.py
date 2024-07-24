@@ -1,7 +1,9 @@
+import base64
 import os
 import random
 import tempfile
 import time
+import traceback
 from urllib.parse import urlparse
 
 from flask import Flask, abort, after_this_request, request, send_file
@@ -37,7 +39,7 @@ def screenshot():
 
     try:
         hostname = urlparse(str(options.url)).hostname.replace('.', '-')
-        screenshot_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.png"
+        screenshot_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
 
         capture_service.capture_screenshot(str(options.url), screenshot_path, options)
 
@@ -47,7 +49,14 @@ def screenshot():
                 os.remove(screenshot_path)
             return response
 
-        return send_file(screenshot_path, mimetype=f'image/{options.format}')
+        if options.response_type == 'empty':
+            return '', 204
+        elif options.response_type == 'json':
+            with open(screenshot_path, 'rb') as f:
+                image_data = f.read()
+            return {'image': base64.b64encode(image_data).decode('utf-8')}, 200
+        else:  # by_format
+            return send_file(screenshot_path, mimetype=f'image/{options.format}')
 
     except Exception as err:
         return {

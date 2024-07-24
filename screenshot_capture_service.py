@@ -20,7 +20,7 @@ class ScreenshotCaptureService:
                 self.browser_controller.goto_with_timeout(page, url)
                 print('Initial page load complete!')
 
-                self.browser_controller.wait_for_page_load(page, options.get('wait_for_timeout', 5000))
+                self.browser_controller.wait_for_page_load(page, options.wait_for_timeout)
                 print('Page loaded!')
 
                 with open(self.browser_controller.js_file_path, 'r') as file:
@@ -32,21 +32,43 @@ class ScreenshotCaptureService:
 
                 print('All images loaded')
 
-                if options.get('scroll_to_bottom', True):
+                if options.scroll_to_bottom:
                     print('Scrolling to bottom of page...')
-                    self.browser_controller.scroll_to_bottom(page, options.get('max_scrolls', 10),
-                                                             options.get('scroll_timeout', 30))
+                    self.browser_controller.scroll_to_bottom(page, options.max_scrolls, options.scroll_timeout)
 
-                full_height = page.evaluate('pageUtils.getFullHeight()')
-                full_height = min(full_height, self.MAX_VIEWPORT_HEIGHT)
+                if options.wait_for_selector:
+                    page.wait_for_selector(options.wait_for_selector, timeout=options.wait_for_timeout)
 
-                page.set_viewport_size({'width': options.get('windowWidth', 1280), 'height': full_height})
+                if options.custom_js:
+                    page.evaluate(options.custom_js)
+
+                if options.full_page:
+                    full_height = page.evaluate('pageUtils.getFullHeight()')
+                    full_height = min(full_height, self.MAX_VIEWPORT_HEIGHT)
+                    page.set_viewport_size({'width': options.windowWidth, 'height': full_height})
+                else:
+                    page.set_viewport_size({'width': options.windowWidth, 'height': options.windowHeight})
 
                 self.browser_controller.scroll_to(page, 0)
                 page.wait_for_timeout(2000)
 
                 print('Capturing screenshot...')
-                page.screenshot(path=output_path, full_page=options.get('full_page', True))
+                screenshot_options = {
+                    'path': output_path,
+                    'full_page': options.full_page,
+                    'quality': options.image_quality if options.format != 'png' else None,
+                    'omit_background': options.omit_background,
+                    'type': options.format,
+                }
+
+                if options.selector:
+                    element = page.query_selector(options.selector)
+                    if element:
+                        element.screenshot(**screenshot_options)
+                    else:
+                        raise ValueError(f"Selector '{options.selector}' not found on the page.")
+                else:
+                    page.screenshot(**screenshot_options)
 
                 print('Screenshot captured!')
             except Exception as error:
