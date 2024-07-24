@@ -17,30 +17,30 @@ class ContextCreator:
 
     def _get_extensions(self, options):
         extensions = []
-        if options.get('use_popup_blocker', True):
+        if options.use_popup_blocker:
             extensions.append(os.path.join(self.extension_dir, 'popup-off'))
-        if options.get('use_cookie_blocker', True):
+        if options.use_cookie_blocker:
             extensions.append(os.path.join(self.extension_dir, 'dont-care-cookies'))
         return extensions
 
     def _create_context_options(self, options, user_data_dir, extensions):
         context_options = {
             "user_data_dir": user_data_dir,
-            "headless": options.get('headless', False),
-            "ignore_https_errors": options.get('ignore_https_errors', True),
-            "device_scale_factor": options.get('pixel_density', 2.0),
+            "headless": False,  # Assuming headless is not in the Pydantic model
+            "ignore_https_errors": options.ignore_https_errors,
+            "device_scale_factor": options.pixel_density,
             "viewport": {
-                "width": options.get('windowWidth', 1280),
-                "height": options.get('windowHeight', 720)
+                "width": options.window_width,
+                "height": options.window_height
             },
             "args": self._get_browser_args(extensions),
         }
 
-        if options.get('proxy_server') and options.get('proxy_port'):
+        if options.proxy_server and options.proxy_port:
             context_options["proxy"] = {
-                "server": f"{options['proxy_server']}:{options['proxy_port']}",
-                "username": options.get('proxy_username'),
-                "password": options.get('proxy_password')
+                "server": f"{options.proxy_server}:{options.proxy_port}",
+                "username": options.proxy_username,
+                "password": options.proxy_password
             }
 
         return context_options

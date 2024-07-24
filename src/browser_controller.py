@@ -3,11 +3,13 @@ import asyncio
 import logging
 from playwright.async_api import Page
 from typing import Awaitable, TypeVar
-from exceptions import BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException
+from exceptions import BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException, \
+    TimeoutException
 
 T = TypeVar('T')
 
 logger = logging.getLogger(__name__)
+
 
 class BrowserController:
     MAX_VIEWPORT_HEIGHT = 16384
@@ -65,7 +67,8 @@ class BrowserController:
 
     async def wait_for_selector(self, page: Page, selector: str, timeout: int):
         try:
-            await self._safe_wait(page.wait_for_selector(selector), timeout, f"Timeout waiting for selector '{selector}'")
+            await self._safe_wait(page.wait_for_selector(selector), timeout,
+                                  f"Timeout waiting for selector '{selector}'")
         except TimeoutException as e:
             logger.warning(str(e))
             raise ElementNotFoundException(f"Selector '{selector}' not found on the page within {timeout}ms")
@@ -75,7 +78,8 @@ class BrowserController:
             await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
             await self.wait_for_network_idle(page, self.NETWORK_IDLE_TIMEOUT_MS)
 
-            full_height = await page.evaluate('Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)')
+            full_height = await page.evaluate(
+                'Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)')
             full_height = min(full_height, self.MAX_VIEWPORT_HEIGHT)
 
             await self._set_viewport_and_scroll(page, window_width, full_height)

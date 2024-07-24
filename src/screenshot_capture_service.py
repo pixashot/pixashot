@@ -3,9 +3,10 @@ import logging
 from playwright.sync_api import sync_playwright
 from context_creator import ContextCreator
 from browser_controller import BrowserController
-from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException
+from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException,  JavaScriptExecutionException, TimeoutException
 
 logger = logging.getLogger(__name__)
+
 
 class ScreenshotCaptureService:
     def __init__(self):
@@ -38,7 +39,8 @@ class ScreenshotCaptureService:
 
                     logger.info(f'Screenshot captured! Total time: {time.time() - start_time:.2f}s')
                     return
-            except (BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException) as e:
+            except (BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException,
+                    TimeoutException) as e:
                 logger.error(f'Error during screenshot capture (attempt {attempt + 1}/{max_retries + 1}): {str(e)}')
                 if attempt < max_retries:
                     time.sleep(retry_delay)

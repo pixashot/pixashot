@@ -40,5 +40,5 @@ class ScreenshotRequest(BaseModel):
     ignore_https_errors: Optional[bool] = Field(True, description="Ignore HTTPS errors during navigation")
 
     # Additional options that could be easily implemented
-    full_page: Optional[bool] = Field(True, description="Take a screenshot of the full page")
+    full_page: Optional[bool] = Field(False, description="Take a screenshot of the full page")
     omit_background: Optional[bool] = Field(False, description="Render a transparent background for the image")
