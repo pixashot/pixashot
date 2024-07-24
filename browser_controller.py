@@ -35,7 +35,7 @@ class BrowserController:
     def prepare_for_full_page_screenshot(self, page, window_width):
         # Scroll to the bottom of the page
         page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-        page.wait_for_timeout(500)  # Wait for any dynamic content to load
+        page.wait_for_load_state('networkidle', timeout=1000)
 
         # Get the full height of the page
         full_height = page.evaluate('Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)')
@@ -45,7 +45,7 @@ class BrowserController:
         page.set_viewport_size({'width': window_width, 'height': full_height})
 
         # Wait for network idle
-        page.wait_for_load_state('networkidle')
+        page.wait_for_load_state('networkidle', timeout=500)
 
         # Scroll back to the top
         page.evaluate('window.scrollTo(0, 0)')
@@ -56,7 +56,7 @@ class BrowserController:
         page.set_viewport_size({'width': window_width, 'height': window_height})
 
         # Wait for network idle
-        page.wait_for_load_state('networkidle')
+        page.wait_for_load_state('networkidle', timeout=500)
 
     def inject_and_execute_scripts(self, page):
         with open(self.js_file_path, 'r') as file:
