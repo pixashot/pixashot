@@ -22,14 +22,14 @@ class BrowserController:
 
     def goto_with_timeout(self, page: Page, url: str, timeout: float = 5.0):
         try:
-            page.goto(url, wait_until='domcontentloaded', timeout=timeout * 1000)
+            page.goto(str(url), wait_until='domcontentloaded', timeout=timeout * 1000)
         except TimeoutError:
             logger.warning(f"Navigation exceeded {timeout} seconds. Proceeding without waiting for full load.")
             raise TimeoutException(f"Navigation to {url} timed out after {timeout} seconds")
 
     def prepare_page(self, page: Page, options):
         try:
-            self.inject_scripts(page)
+            # self.inject_scripts(page)
             self.prevent_horizontal_overflow(page)
             if options.dark_mode:
                 self.apply_dark_mode(page)
@@ -132,35 +132,10 @@ class BrowserController:
 
     def apply_dark_mode(self, page: Page):
         try:
-            page.evaluate("""
-                () => {
-                    // Set color-scheme to dark
-                    document.documentElement.style.colorScheme = 'dark';
-
-                    // Add a meta tag for color-scheme if it doesn't exist
-                    if (!document.querySelector('meta[name="color-scheme"]')) {
-                        const meta = document.createElement('meta');
-                        meta.name = 'color-scheme';
-                        meta.content = 'dark';
-                        document.head.appendChild(meta);
-                    }
-
-                    // Set prefers-color-scheme media query (for Tailwind's media strategy)
-                    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-                    Object.defineProperty(darkModeMediaQuery, 'matches', { get: () => true });
-                    window.dispatchEvent(new Event('dark-mode-change'));
-
-                    // Add 'dark' class to <html> element (for Tailwind's class strategy)
-                    document.documentElement.classList.add('dark');
-
-                    // Force update for sites using Tailwind's class strategy
-                    if (window.Alpine) {
-                        window.Alpine.store('darkMode').on();
-                        window.Alpine.store('theme').setDarkMode();
-                    }
-                }
-            """)
-            logger.info("Dark mode preference applied successfully for Tailwind sites")
+            with open(self.dark_mode_js_path, 'r') as file:
+                dark_mode_js = file.read()
+            page.evaluate(dark_mode_js)
+            logger.info("Dark mode applied successfully")
         except Exception as e:
-            logger.error(f"Error applying dark mode preference: {str(e)}")
-            raise JavaScriptExecutionException(f"Failed to apply dark mode preference: {str(e)}")
+            logger.error(f"Error applying dark mode: {str(e)}")
+            raise JavaScriptExecutionException(f"Failed to apply dark mode: {str(e)}")
