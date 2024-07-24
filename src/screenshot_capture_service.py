@@ -3,7 +3,7 @@ import logging
 from playwright.sync_api import sync_playwright
 from context_creator import ContextCreator
 from browser_controller import BrowserController
-from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException,  JavaScriptExecutionException, TimeoutException
+from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +56,6 @@ class ScreenshotCaptureService:
         try:
             self.browser_controller.prepare_page(page, options)
             logger.info(f'Page prepared! Time taken: {time.time() - start_time:.2f}s')
-
-            if options.custom_js:
-                self.browser_controller.execute_custom_js(page, options.custom_js)
-                logger.info(f'Custom JS executed. Time taken: {time.time() - start_time:.2f}s')
-
-            if options.wait_for_selector:
-                self.browser_controller.wait_for_selector(page, options.wait_for_selector, options.wait_for_timeout)
-                logger.info(f'Waited for selector. Time taken: {time.time() - start_time:.2f}s')
         except (NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException) as e:
             logger.error(f"Error preparing page: {str(e)}")
             raise
