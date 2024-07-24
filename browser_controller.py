@@ -1,8 +1,9 @@
 import os
 import time
 
-
 class BrowserController:
+    MAX_VIEWPORT_HEIGHT = 16384
+
     def __init__(self):
         self.js_file_path = os.path.join(os.path.dirname(__file__), 'js/page-utils.js')
         self.dynamic_content_detector_path = os.path.join(os.path.dirname(__file__), 'js/dynamic-content-detector.js')
@@ -11,7 +12,7 @@ class BrowserController:
         try:
             page.goto(url, wait_until='networkidle', timeout=5000)
         except TimeoutError:
-            print("Navigation exceeded 20 seconds. Proceeding without waiting for network idle.")
+            print("Navigation exceeded 5 seconds. Proceeding without waiting for network idle.")
 
     def get_scroll_height(self, page):
         return page.evaluate("() => document.documentElement.scrollHeight")
@@ -22,45 +23,44 @@ class BrowserController:
 
     def wait_for_page_load(self, page, timeout=5000):
         try:
-            # Wait for the initial page load
             page.wait_for_load_state('networkidle', timeout=timeout)
-
-            # Load and execute our custom JavaScript
             with open(self.dynamic_content_detector_path, 'r') as file:
                 js_content = file.read()
                 page.evaluate(js_content)
-
-            # Call our custom function and wait for it to resolve
             page.evaluate('detectDynamicContentLoading(1000, 5)')
-
             print("Dynamic content finished loading")
         except Exception as e:
             print(f"Timeout or error waiting for dynamic content: {e}")
 
-    def scroll_to_bottom(self, page, max_scrolls=10, scroll_timeout=30):
-        previous_height = 0
-        scroll_count = 0
-        start_time = time.time()
+    def prepare_for_full_page_screenshot(self, page, window_width):
+        # Scroll to the bottom of the page
+        page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+        page.wait_for_timeout(1000)  # Wait for any dynamic content to load
 
-        while scroll_count < max_scrolls and (time.time() - start_time) < scroll_timeout:
-            current_height = page.evaluate('() => document.body.scrollHeight')
-            if current_height == previous_height:
-                print("Reached the bottom of the page or no new content loaded.")
-                break
+        # Get the full height of the page
+        full_height = page.evaluate('Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)')
+        full_height = min(full_height, self.MAX_VIEWPORT_HEIGHT)
 
-            # Scroll in smaller increments
-            for i in range(0, current_height - previous_height, 200):
-                self.scroll_to(page, previous_height + i)
-                page.wait_for_timeout(100)  # Short pause between scrolls
+        # Set the viewport to the full height
+        page.set_viewport_size({'width': window_width, 'height': full_height})
 
-            page.wait_for_timeout(2000)  # Wait for 2 seconds to allow content to load
+        # Wait for network idle
+        page.wait_for_load_state('networkidle')
 
-            scroll_count += 1
-            previous_height = current_height
+        # Scroll back to the top
+        page.evaluate('window.scrollTo(0, 0)')
+        page.wait_for_timeout(500)  # Short pause after scrolling
 
-            print(f"Scroll {scroll_count}/{max_scrolls} completed. Current height: {current_height}")
+    def prepare_for_viewport_screenshot(self, page, window_width, window_height):
+        # Set the viewport to the specified size
+        page.set_viewport_size({'width': window_width, 'height': window_height})
 
-        if scroll_count == max_scrolls:
-            print(f"Reached maximum number of scrolls ({max_scrolls}).")
-        elif (time.time() - start_time) >= scroll_timeout:
-            print(f"Scroll operation timed out after {scroll_timeout} seconds.")
+        # Wait for network idle
+        page.wait_for_load_state('networkidle')
+
+    def inject_and_execute_scripts(self, page):
+        with open(self.js_file_path, 'r') as file:
+            js_content = file.read()
+            page.evaluate(js_content)
+        page.evaluate('pageUtils.disableSmoothScrolling()')
+        page.evaluate('pageUtils.waitForAllImages()')
