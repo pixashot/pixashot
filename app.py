@@ -2,7 +2,6 @@ import os
 import random
 import tempfile
 import time
-import traceback
 from urllib.parse import urlparse
 
 from flask import Flask, abort, after_this_request, request, send_file
@@ -32,35 +31,15 @@ def auth_token_middleware():
 @app.route('/screenshot', methods=['POST'])
 def screenshot():
     try:
-        data = ScreenshotRequest(**request.json)
+        options = ScreenshotRequest(**request.json)
     except ValueError as e:
         return {'status': 'error', 'message': str(e)}, 400
 
     try:
-        hostname = urlparse(str(data.url)).hostname.replace('.', '-')
+        hostname = urlparse(str(options.url)).hostname.replace('.', '-')
         screenshot_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.png"
 
-        options = {
-            'windowWidth': data.windowWidth,
-            'windowHeight': data.windowHeight,
-            'pixel_density': data.pixel_density,
-            'proxy_server': data.proxy_server,
-            'proxy_port': data.proxy_port,
-            'proxy_username': data.proxy_username,
-            'proxy_password': data.proxy_password,
-            'ignore_https_errors': data.ignore_https_errors,
-            'full_page': data.full_page,
-            'scroll_to_bottom': data.scroll_to_bottom,
-            'max_scrolls': data.max_scrolls,
-            'scroll_timeout': data.scroll_timeout,
-            'wait_for_timeout': data.wait_for_timeout,
-            'headless': data.headless,
-            'format': data.format,
-        }
-
-        capture_service.capture_screenshot(str(data.url), screenshot_path, options)
-
-        print(f"Returning screenshot from {screenshot_path}")
+        capture_service.capture_screenshot(str(options.url), screenshot_path, options)
 
         @after_this_request
         def remove_file(response):
@@ -68,7 +47,7 @@ def screenshot():
                 os.remove(screenshot_path)
             return response
 
-        return send_file(screenshot_path, mimetype=f'image/{data.format}')
+        return send_file(screenshot_path, mimetype=f'image/{options.format}')
 
     except Exception as err:
         return {

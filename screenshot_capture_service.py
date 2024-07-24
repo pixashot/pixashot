@@ -1,5 +1,5 @@
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
-
+from playwright.sync_api import sync_playwright
+from context_creator import ContextCreator
 from browser_controller import BrowserController
 
 
@@ -7,11 +7,12 @@ class ScreenshotCaptureService:
     MAX_VIEWPORT_HEIGHT = 16384
 
     def __init__(self):
+        self.context_creator = ContextCreator()
         self.browser_controller = BrowserController()
 
     def capture_screenshot(self, url, output_path, options):
         with sync_playwright() as p:
-            context = self.browser_controller.create_context(p, options)
+            context = self.context_creator.create_context(p, options)
             page = context.new_page()
 
             try:
@@ -33,7 +34,8 @@ class ScreenshotCaptureService:
 
                 if options.get('scroll_to_bottom', True):
                     print('Scrolling to bottom of page...')
-                    self.browser_controller.scroll_to_bottom(page, options.get('max_scrolls', 10), options.get('scroll_timeout', 30))
+                    self.browser_controller.scroll_to_bottom(page, options.get('max_scrolls', 10),
+                                                             options.get('scroll_timeout', 30))
 
                 full_height = page.evaluate('pageUtils.getFullHeight()')
                 full_height = min(full_height, self.MAX_VIEWPORT_HEIGHT)
@@ -47,9 +49,6 @@ class ScreenshotCaptureService:
                 page.screenshot(path=output_path, full_page=options.get('full_page', True))
 
                 print('Screenshot captured!')
-            except PlaywrightTimeoutError:
-                print('Timeout occurred, but continuing with screenshot capture')
-                page.screenshot(path=output_path, full_page=options.get('full_page', True))
             except Exception as error:
                 print('Error during screenshot capture:', error)
                 raise

@@ -1,55 +1,11 @@
 import os
-import tempfile
 import time
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+
 
 class BrowserController:
     def __init__(self):
         self.js_file_path = os.path.join(os.path.dirname(__file__), 'js/page-utils.js')
         self.dynamic_content_detector_path = os.path.join(os.path.dirname(__file__), 'js/dynamic-content-detector.js')
-
-    def create_context(self, playwright, options):
-        temp_dir = tempfile.gettempdir()
-        user_data_dir = os.path.join(temp_dir, 'chrome-user-data')
-
-        extensions = [
-            os.path.join(os.path.dirname(__file__), 'extensions/popup-off'),
-            os.path.join(os.path.dirname(__file__), 'extensions/dont-care-cookies'),
-        ]
-
-        disable_extensions_arg = f"--disable-extensions-except={','.join(extensions)}"
-        load_extension_args = [f"--load-extension={ext}" for ext in extensions]
-
-        context_options = {
-            "user_data_dir": user_data_dir,
-            "headless": options.get('headless', False),
-            "ignore_https_errors": options.get('ignore_https_errors', True),
-            "device_scale_factor": options.get('pixel_density', 2.0),
-            "viewport": {
-                "width": options.get('windowWidth', 1280),
-                "height": options.get('windowHeight', 720)
-            },
-            "args": [
-                disable_extensions_arg,
-                *load_extension_args,
-                '--autoplay-policy=no-user-gesture-required',
-                '--disable-gpu',
-                '--disable-accelerated-2d-canvas',
-                '--disable-accelerated-video-decode',
-                '--disable-gpu-compositing',
-                '--disable-gpu-rasterization',
-                '--no-sandbox'
-            ],
-        }
-
-        if options.get('proxy_server') and options.get('proxy_port'):
-            context_options["proxy"] = {
-                "server": f"{options['proxy_server']}:{options['proxy_port']}",
-                "username": options.get('proxy_username'),
-                "password": options.get('proxy_password')
-            }
-
-        return playwright.chromium.launch_persistent_context(**context_options)
 
     def goto_with_timeout(self, page, url):
         try:
