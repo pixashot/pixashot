@@ -7,6 +7,21 @@ class Geolocation(BaseModel):
     longitude: confloat(ge=-180, le=180)
     accuracy: PositiveFloat
 
+    def __eq__(self, other):
+        if isinstance(other, dict):
+            return (self.latitude == other['latitude'] and
+                    self.longitude == other['longitude'] and
+                    self.accuracy == other['accuracy'])
+        return super().__eq__(other)
+
+
+def validate_url_or_html_content(v):
+    if not v.get('url') and not v.get('html_content'):
+        raise ValueError('Either url or html_content must be provided')
+    if v.get('url') and v.get('html_content'):
+        raise ValueError('Cannot provide both url and html_content')
+    return v
+
 
 class CaptureRequest(BaseModel):
     # Basic options
@@ -55,13 +70,17 @@ class CaptureRequest(BaseModel):
     geolocation: Optional[Geolocation] = Field(None, description="Geolocation to spoof (latitude, longitude, accuracy)")
 
     # PDF-specific options
-    pdf_print_background: Optional[bool] = Field(True, description="Print background graphics in PDF")
-    pdf_scale: Optional[PositiveFloat] = Field(1.0, description="Scale of the webpage rendering")
+    pdf_print_background: Optional[bool] = Field(None, description="Print background graphics in PDF")
+    pdf_scale: Optional[PositiveFloat] = Field(None, description="Scale of the webpage rendering")
     pdf_page_ranges: Optional[str] = Field(None, description="Paper ranges to print, e.g., '1-5, 8, 11-13'")
     pdf_format: Optional[Literal["A4", "Letter", "Legal"]] = Field(None,
                                                                    description="Paper format, e.g., 'A4', 'Letter'")
     pdf_width: Optional[str] = Field(None, description="Paper width, accepts values labeled with units")
     pdf_height: Optional[str] = Field(None, description="Paper height, accepts values labeled with units")
+
+    @model_validator(mode='before')
+    def validate_url_or_html_content(cls, values):
+        return validate_url_or_html_content(values)
 
     @model_validator(mode='after')
     def check_pdf_options(self) -> 'CaptureRequest':
@@ -72,8 +91,6 @@ class CaptureRequest(BaseModel):
                     raise ValueError(f'{field} can only be set when format is "pdf"')
         return self
 
-    @model_validator(mode='before')
-    def check_url_or_html_content(cls, data: dict) -> dict:
-        if not data.get('url') and not data.get('html_content'):
-            raise ValueError('Either url or html_content must be provided')
-        return data
+    model_config = {
+        'arbitrary_types_allowed': True
+    }
