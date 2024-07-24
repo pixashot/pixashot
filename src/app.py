@@ -53,24 +53,27 @@ def screenshot():
             hostname = urlparse(str(options.url)).hostname.replace('.', '-')
         else:
             hostname = 'html-content'
-        screenshot_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
 
-        capture_service.capture_screenshot(screenshot_path, options)
+        # Simplified file extension handling
+        output_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
+
+        capture_service.capture_screenshot(output_path, options)
 
         @after_this_request
         def remove_file(response):
-            if os.path.exists(screenshot_path):
-                os.remove(screenshot_path)
+            if os.path.exists(output_path):
+                os.remove(output_path)
             return response
 
         if options.response_type == 'empty':
             return '', 204
         elif options.response_type == 'json':
-            with open(screenshot_path, 'rb') as f:
-                image_data = f.read()
-            return {'image': base64.b64encode(image_data).decode('utf-8')}, 200
+            with open(output_path, 'rb') as f:
+                file_data = f.read()
+            return {'file': base64.b64encode(file_data).decode('utf-8')}, 200
         else:  # by_format
-            return send_file(screenshot_path, mimetype=f'image/{options.format}')
+            mime_type = 'application/pdf' if options.format == 'pdf' else f'image/{options.format}'
+            return send_file(output_path, mimetype=mime_type)
 
     except ScreenshotServiceException as e:
         app.logger.error(f"Screenshot service error: {str(e)}")
@@ -83,7 +86,7 @@ def screenshot():
         app.logger.exception("Unexpected error occurred")
         return {
             'status': 'error',
-            'message': 'An unexpected error occurred while capturing the screenshot.',
+            'message': 'An unexpected error occurred while capturing.',
             'errorDetails': str(e),
             'stackTrace': traceback.format_exc()
         }, 500

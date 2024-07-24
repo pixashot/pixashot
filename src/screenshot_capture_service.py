@@ -37,25 +37,28 @@ class ScreenshotCaptureService:
 
                     self._prepare_page(page, options)
 
-                    if options.full_page:
+                    if options.format == 'pdf':
+                        logger.info('Capturing PDF...')
+                        self.capture_pdf(page, output_path, options)
+                    elif options.full_page:
                         logger.info('Capturing full page screenshot...')
                         self.capture_full_page_screenshot(page, output_path, options)
                     else:
                         logger.info('Capturing viewport screenshot...')
                         self.capture_viewport_screenshot(page, output_path, options)
 
-                    logger.info(f'Screenshot captured! Total time: {time.time() - start_time:.2f}s')
+                    logger.info(f'Capture complete! Total time: {time.time() - start_time:.2f}s')
                     return
             except (BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException,
                     TimeoutException) as e:
-                logger.error(f'Error during screenshot capture (attempt {attempt + 1}/{max_retries + 1}): {str(e)}')
+                logger.error(f'Error during capture (attempt {attempt + 1}/{max_retries + 1}): {str(e)}')
                 if attempt < max_retries:
                     time.sleep(retry_delay)
                     continue
-                raise ScreenshotServiceException(f"Failed to capture screenshot after {max_retries} attempts: {str(e)}")
+                raise ScreenshotServiceException(f"Failed to capture after {max_retries} attempts: {str(e)}")
             except Exception as e:
-                logger.exception("Unexpected error during screenshot capture")
-                raise ScreenshotServiceException(f"Unexpected error during screenshot capture: {str(e)}")
+                logger.exception("Unexpected error during capture")
+                raise ScreenshotServiceException(f"Unexpected error during capture: {str(e)}")
 
     def _prepare_page(self, page, options):
         start_time = time.time()
@@ -122,3 +125,21 @@ class ScreenshotCaptureService:
         except Exception as e:
             logger.error(f"Error cropping screenshot: {str(e)}")
             raise ScreenshotServiceException(f"Failed to crop screenshot: {str(e)}")
+
+    def capture_pdf(self, page, output_path, options):
+        try:
+            pdf_options = {
+                'path': output_path,
+                'print_background': options.pdf_print_background,
+                'scale': options.pdf_scale,
+                'page_ranges': options.pdf_page_ranges,
+                'format': options.pdf_format,
+                'width': options.pdf_width,
+                'height': options.pdf_height,
+            }
+            # Remove None values
+            pdf_options = {k: v for k, v in pdf_options.items() if v is not None}
+            page.pdf(**pdf_options)
+        except Exception as e:
+            logger.error(f"Error capturing PDF: {str(e)}")
+            raise ScreenshotServiceException(f"Failed to capture PDF: {str(e)}")
