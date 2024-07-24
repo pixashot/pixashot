@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 from src.app import app
-from src.screenshot_capture_service import ScreenshotCaptureService
+from src.capture_service import CaptureService
 
 
 class TestPixashotIntegration(unittest.TestCase):
@@ -12,7 +12,7 @@ class TestPixashotIntegration(unittest.TestCase):
         self.app = app.test_client()
         self.app.testing = True
         # Ensure the ScreenshotCaptureService is initialized
-        app.capture_service = ScreenshotCaptureService()
+        app.capture_service = CaptureService()
 
     def test_screenshot_endpoint(self):
         # Test data
