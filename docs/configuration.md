@@ -19,7 +19,7 @@ Pixashot offers a wide range of configuration options to customize the screensho
 
 ## Wait Options
 
-- `wait_for_timeout` (int, optional, default: 5000): Time in milliseconds to wait for the page to load before capturing.
+- `wait_for_timeout` (int, optional, default: 5000): Time in milliseconds to wait after initial page load and preparation. This can be used to allow dynamic content to load, animations to complete, or to introduce a delay before capturing the screenshot.
 - `wait_for_selector` (str, optional): Wait for a specific CSS selector to appear in the DOM before capturing.
 
 ## Image Quality Options

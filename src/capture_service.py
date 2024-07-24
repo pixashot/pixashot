@@ -2,7 +2,7 @@ import time
 import logging
 from playwright.sync_api import sync_playwright
 from context_creator import ContextCreator
-from browser_controller import BrowserController
+from controllers.main_controller import MainBrowserController
 from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException, \
     JavaScriptExecutionException, TimeoutException
 from PIL import Image
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class CaptureService:
     def __init__(self):
         self.context_creator = ContextCreator()
-        self.browser_controller = BrowserController()
+        self.browser_controller = MainBrowserController()
 
     def capture_screenshot(self, output_path, options):
         max_retries = 3
@@ -65,6 +65,12 @@ class CaptureService:
 
         try:
             self.browser_controller.prepare_page(page, options)
+
+            # Move wait_for_timeout here, after page preparation
+            if options.wait_for_timeout > 0:
+                logger.info(f"Waiting for {options.wait_for_timeout}ms as specified...")
+                page.wait_for_timeout(options.wait_for_timeout)
+
             logger.info(f'Page prepared! Time taken: {time.time() - start_time:.2f}s')
         except (NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException) as e:
             logger.error(f"Error preparing page: {str(e)}")

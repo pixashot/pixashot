@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, HttpUrl, Field
 
 
@@ -37,6 +37,10 @@ class CaptureRequest(BaseModel):
     proxy_port: Optional[int] = Field(None, description="Proxy server port")
     proxy_username: Optional[str] = Field(None, description="Proxy server username")
     proxy_password: Optional[str] = Field(None, description="Proxy server password")
+
+    # Geolocation options
+    geolocation: Optional[Dict[str, float]] = Field(None,
+                                                    description="Geolocation to spoof (latitude, longitude, accuracy)")
 
     # Error options
     ignore_https_errors: Optional[bool] = Field(True, description="Ignore HTTPS errors during navigation")
