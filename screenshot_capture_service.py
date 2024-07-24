@@ -1,8 +1,11 @@
+import time
+import logging
 from playwright.sync_api import sync_playwright
 from context_creator import ContextCreator
 from browser_controller import BrowserController
-import time
+from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException
 
+logger = logging.getLogger(__name__)
 
 class ScreenshotCaptureService:
     def __init__(self):
@@ -20,52 +23,64 @@ class ScreenshotCaptureService:
                     page = context.new_page()
 
                     start_time = time.time()
-                    print(f"Loading {url}...")
+                    logger.info(f"Loading {url}...")
                     self.browser_controller.goto_with_timeout(page, url)
-                    print(f'Initial page load complete! Time taken: {time.time() - start_time:.2f}s')
+                    logger.info(f'Initial page load complete! Time taken: {time.time() - start_time:.2f}s')
 
                     self._prepare_page(page, options)
 
                     if options.full_page:
-                        print('Capturing full page screenshot...')
+                        logger.info('Capturing full page screenshot...')
                         self.capture_full_page_screenshot(page, output_path, options)
                     else:
-                        print('Capturing viewport screenshot...')
+                        logger.info('Capturing viewport screenshot...')
                         self.capture_viewport_screenshot(page, output_path, options)
 
-                    print(f'Screenshot captured! Total time: {time.time() - start_time:.2f}s')
+                    logger.info(f'Screenshot captured! Total time: {time.time() - start_time:.2f}s')
                     return
-            except Exception as error:
-                print(f'Error during screenshot capture (attempt {attempt + 1}/{max_retries + 1}): {error}')
+            except (BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException) as e:
+                logger.error(f'Error during screenshot capture (attempt {attempt + 1}/{max_retries + 1}): {str(e)}')
                 if attempt < max_retries:
                     time.sleep(retry_delay)
                     continue
-                raise
+                raise ScreenshotServiceException(f"Failed to capture screenshot after {max_retries} attempts: {str(e)}")
+            except Exception as e:
+                logger.exception("Unexpected error during screenshot capture")
+                raise ScreenshotServiceException(f"Unexpected error during screenshot capture: {str(e)}")
 
     def _prepare_page(self, page, options):
         start_time = time.time()
 
-        self.browser_controller.wait_for_page_load(page, options.wait_for_timeout)
-        print(f'Page loaded! Time taken: {time.time() - start_time:.2f}s')
+        try:
+            self.browser_controller.prepare_page(page, options)
+            logger.info(f'Page prepared! Time taken: {time.time() - start_time:.2f}s')
 
-        self.browser_controller.inject_and_execute_scripts(page)
-        print(f'Scripts injected and executed. Time taken: {time.time() - start_time:.2f}s')
+            if options.custom_js:
+                self.browser_controller.execute_custom_js(page, options.custom_js)
+                logger.info(f'Custom JS executed. Time taken: {time.time() - start_time:.2f}s')
 
-        if options.custom_js:
-            page.evaluate(options.custom_js)
-            print(f'Custom JS executed. Time taken: {time.time() - start_time:.2f}s')
-
-        if options.wait_for_selector:
-            page.wait_for_selector(options.wait_for_selector, timeout=options.wait_for_timeout)
-            print(f'Waited for selector. Time taken: {time.time() - start_time:.2f}s')
+            if options.wait_for_selector:
+                self.browser_controller.wait_for_selector(page, options.wait_for_selector, options.wait_for_timeout)
+                logger.info(f'Waited for selector. Time taken: {time.time() - start_time:.2f}s')
+        except (NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException) as e:
+            logger.error(f"Error preparing page: {str(e)}")
+            raise
 
     def capture_full_page_screenshot(self, page, output_path, options):
-        self.browser_controller.prepare_for_full_page_screenshot(page, options.window_width)
-        self._take_screenshot(page, output_path, options, full_page=True)
+        try:
+            self.browser_controller.prepare_for_full_page_screenshot(page, options.window_width)
+            self._take_screenshot(page, output_path, options, full_page=True)
+        except Exception as e:
+            logger.error(f"Error capturing full page screenshot: {str(e)}")
+            raise ScreenshotServiceException(f"Failed to capture full page screenshot: {str(e)}")
 
     def capture_viewport_screenshot(self, page, output_path, options):
-        self.browser_controller.prepare_for_viewport_screenshot(page, options.window_width, options.window_height)
-        self._take_screenshot(page, output_path, options, full_page=False)
+        try:
+            self.browser_controller.prepare_for_viewport_screenshot(page, options.window_width, options.window_height)
+            self._take_screenshot(page, output_path, options, full_page=False)
+        except Exception as e:
+            logger.error(f"Error capturing viewport screenshot: {str(e)}")
+            raise ScreenshotServiceException(f"Failed to capture viewport screenshot: {str(e)}")
 
     def _take_screenshot(self, page, output_path, options, full_page):
         screenshot_options = {
@@ -76,11 +91,18 @@ class ScreenshotCaptureService:
             'type': options.format,
         }
 
-        if options.selector:
-            element = page.query_selector(options.selector)
-            if element:
-                element.screenshot(**screenshot_options)
+        try:
+            if options.selector:
+                element = page.query_selector(options.selector)
+                if element:
+                    element.screenshot(**screenshot_options)
+                else:
+                    raise ElementNotFoundException(f"Selector '{options.selector}' not found on the page.")
             else:
-                raise ValueError(f"Selector '{options.selector}' not found on the page.")
-        else:
-            page.screenshot(**screenshot_options)
+                page.screenshot(**screenshot_options)
+        except ElementNotFoundException as e:
+            logger.error(f"Error taking screenshot: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Error taking screenshot: {str(e)}")
+            raise ScreenshotServiceException(f"Failed to take screenshot: {str(e)}")

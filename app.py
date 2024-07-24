@@ -10,6 +10,26 @@ from flask import Flask, abort, after_this_request, request, send_file
 
 from screenshot_capture_service import ScreenshotCaptureService
 from screenshot_request import ScreenshotRequest
+import logging
+from logging.config import dictConfig
+from exceptions import ScreenshotServiceException
+
+# Configure logging
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
 
 app = Flask(__name__)
 
@@ -35,6 +55,7 @@ def screenshot():
     try:
         options = ScreenshotRequest(**request.json)
     except ValueError as e:
+        app.logger.error(f"Invalid request parameters: {str(e)}")
         return {'status': 'error', 'message': str(e)}, 400
 
     try:
@@ -58,11 +79,19 @@ def screenshot():
         else:  # by_format
             return send_file(screenshot_path, mimetype=f'image/{options.format}')
 
-    except Exception as err:
+    except ScreenshotServiceException as e:
+        app.logger.error(f"Screenshot service error: {str(e)}")
+        return {
+            'status': 'error',
+            'message': str(e),
+            'errorType': e.__class__.__name__
+        }, 500
+    except Exception as e:
+        app.logger.exception("Unexpected error occurred")
         return {
             'status': 'error',
             'message': 'An unexpected error occurred while capturing the screenshot.',
-            'errorDetails': str(err),
+            'errorDetails': str(e),
             'stackTrace': traceback.format_exc()
         }, 500
 
