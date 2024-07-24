@@ -112,19 +112,72 @@ Send a JSON payload to this endpoint with the screenshot options. See [Configura
 
 ## Configuration Options
 
-The `ScreenshotRequest` class in `screenshot_request.py` defines all available options. Here are some key parameters:
+The `ScreenshotRequest` class in `screenshot_request.py` defines all available options for customizing the screenshot capture process. Below is a comprehensive list of configuration parameters:
 
-- `url`: The URL of the page to capture (required)
-- `windowWidth`: Width of the browser viewport (default: 1280)
-- `windowHeight`: Height of the browser viewport (default: 720)
-- `format`: Image format - "png", "jpeg", or "webp" (default: "png")
-- `full_page`: Whether to capture the full page or just the viewport (default: True)
-- `selector`: CSS selector of a specific element to capture
-- `wait_for_selector`: Wait for a specific element to appear before capturing
-- `custom_js`: Custom JavaScript to execute before capture
-- `proxy_server`, `proxy_port`, `proxy_username`, `proxy_password`: Proxy configuration
+### Basic Options
+- `url` (HttpUrl, required): The URL of the webpage to capture.
+- `windowWidth` (int, optional, default: 1280): Width of the browser viewport in pixels.
+- `windowHeight` (int, optional, default: 720): Height of the browser viewport in pixels.
+- `format` (str, optional, default: "png"): Image format for the screenshot. Options: "png", "jpeg", "webp".
+- `response_type` (str, optional, default: "by_format"): Type of response to return. Options: "by_format" (image file), "empty" (no content), "json" (base64 encoded image).
 
-Refer to `screenshot_request.py` for a complete list of options and their descriptions.
+### Capture Options
+- `selector` (str, optional): CSS selector of a specific element to capture. If provided, only this element will be captured.
+- `capture_beyond_viewport` (bool, optional): Whether to capture content beyond the initial viewport.
+- `full_page` (bool, optional, default: True): Capture the full scrollable page instead of just the viewport.
+- `omit_background` (bool, optional, default: False): Make the screenshot transparent where possible.
+
+### Wait Options
+- `wait_for_timeout` (int, optional, default: 5000): Time in milliseconds to wait for the page to load before capturing.
+- `wait_for_selector` (str, optional): Wait for a specific CSS selector to appear in the DOM before capturing.
+
+### Scroll Options
+- `scroll_to_bottom` (bool, optional, default: True): Scroll to the bottom of the page before capturing to ensure all dynamic content is loaded.
+- `max_scrolls` (int, optional, default: 10): Maximum number of scroll attempts when scrolling to the bottom.
+- `scroll_timeout` (int, optional, default: 30): Timeout in seconds for the entire scrolling operation.
+
+### Image Quality Options
+- `image_quality` (int, optional, default: 80): Image quality for formats that support it (JPEG, WebP). Range: 0-100.
+- `pixel_density` (float, optional, default: 2.0): Device scale factor (DPR) for the screenshot.
+
+### Custom Behavior
+- `custom_js` (str, optional): Custom JavaScript to inject and execute before taking the screenshot.
+
+### Browser Extensions
+- `use_popup_blocker` (bool, optional, default: True): Use the built-in popup blocker extension.
+- `use_cookie_blocker` (bool, optional, default: True): Use the built-in cookie consent blocker extension.
+
+### Proxy Configuration
+- `proxy_server` (str, optional): Proxy server address.
+- `proxy_port` (int, optional): Proxy server port.
+- `proxy_username` (str, optional): Username for proxy authentication.
+- `proxy_password` (str, optional): Password for proxy authentication.
+
+### Error Handling
+- `ignore_https_errors` (bool, optional, default: True): Ignore HTTPS errors during navigation.
+
+### Timeout
+- `timeout` (int, optional, default: 30000): Timeout in milliseconds for the entire screenshot capture operation.
+
+To use these options, include them in the JSON payload when making a POST request to the `/screenshot` endpoint. For example:
+
+```json
+{
+  "url": "https://example.com",
+  "windowWidth": 1920,
+  "windowHeight": 1080,
+  "format": "jpeg",
+  "full_page": true,
+  "wait_for_timeout": 10000,
+  "custom_js": "document.body.style.backgroundColor = 'lightblue';",
+  "image_quality": 90,
+  "use_popup_blocker": true,
+  "proxy_server": "proxy.example.com",
+  "proxy_port": 8080
+}
+```
+
+This configuration will capture a full-page JPEG screenshot of example.com with a 1920x1080 viewport, wait up to 10 seconds for the page to load, change the background color to light blue, set the image quality to 90%, use the popup blocker, and route the request through a proxy server.
 
 ## Custom JavaScript Injection
 
