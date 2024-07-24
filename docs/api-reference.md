@@ -4,7 +4,7 @@ The Pixashot service exposes a single endpoint for capturing screenshots.
 
 ## Endpoint
 
-- **POST** `/screenshot`
+- **POST** `/capture`
 
 ## Request Format
 

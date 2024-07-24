@@ -37,7 +37,7 @@ def auth_token_middleware():
             abort(403, description="Invalid authorization token.")
 
 
-@app.route('/screenshot', methods=['POST'])
+@app.route('/capture', methods=['POST'])
 def screenshot():
     try:
         options = ScreenshotRequest(**request.json)
@@ -49,31 +49,39 @@ def screenshot():
         return {'status': 'error', 'message': 'Either url or html_content must be provided'}, 400
 
     try:
-        if options.url:
-            hostname = urlparse(str(options.url)).hostname.replace('.', '-')
+        if options.format == 'html':
+            html_content = capture_service.capture_screenshot(None, options)
+            if options.response_type == 'json':
+                return {'html': base64.b64encode(html_content.encode()).decode('utf-8')}, 200
+            else:
+                response = make_response(html_content)
+                response.headers['Content-Type'] = 'text/html'
+                return response
         else:
-            hostname = 'html-content'
+            if options.url:
+                hostname = urlparse(str(options.url)).hostname.replace('.', '-')
+            else:
+                hostname = 'html-content'
 
-        # Simplified file extension handling
-        output_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
+            output_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
 
-        capture_service.capture_screenshot(output_path, options)
+            capture_service.capture_screenshot(output_path, options)
 
-        @after_this_request
-        def remove_file(response):
-            if os.path.exists(output_path):
-                os.remove(output_path)
-            return response
+            @after_this_request
+            def remove_file(response):
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                return response
 
-        if options.response_type == 'empty':
-            return '', 204
-        elif options.response_type == 'json':
-            with open(output_path, 'rb') as f:
-                file_data = f.read()
-            return {'file': base64.b64encode(file_data).decode('utf-8')}, 200
-        else:  # by_format
-            mime_type = 'application/pdf' if options.format == 'pdf' else f'image/{options.format}'
-            return send_file(output_path, mimetype=mime_type)
+            if options.response_type == 'empty':
+                return '', 204
+            elif options.response_type == 'json':
+                with open(output_path, 'rb') as f:
+                    file_data = f.read()
+                return {'file': base64.b64encode(file_data).decode('utf-8')}, 200
+            else:  # by_format
+                mime_type = 'application/pdf' if options.format == 'pdf' else f'image/{options.format}'
+                return send_file(output_path, mimetype=mime_type)
 
     except ScreenshotServiceException as e:
         app.logger.error(f"Screenshot service error: {str(e)}")

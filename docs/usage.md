@@ -12,12 +12,12 @@ By default, the server will run on `http://localhost:8080`. You can change the p
 
 ## Making a Screenshot Request
 
-To capture a screenshot, send a POST request to the `/screenshot` endpoint with a JSON payload containing the screenshot options.
+To capture a screenshot, send a POST request to the `/capture` endpoint with a JSON payload containing the screenshot options.
 
 Example using curl:
 
 ```bash
-curl -X POST http://localhost:8080/screenshot \
+curl -X POST http://localhost:8080/capture \
      -H "Content-Type: application/json" \
      -d '{
            "url": "https://example.com",

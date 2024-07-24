@@ -9,7 +9,7 @@ class ScreenshotRequest(BaseModel):
     window_height: Optional[int] = Field(720, description="The height of the browser viewport (pixels)")
 
     # Format options
-    format: Optional[str] = Field("png", description="Response format: png, jpeg, webp, pdf")
+    format: Optional[str] = Field("png", description="Response format: png, jpeg, webp, pdf, html")
     response_type: Optional[str] = Field("by_format", description="Response type: by_format, empty, json")
 
     # Selector and viewport options

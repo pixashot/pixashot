@@ -39,7 +39,7 @@ Get Pixashot up and running in minutes:
 
 4. Capture your first screenshot:
    ```
-   curl -X POST http://localhost:8080/screenshot \
+   curl -X POST http://localhost:8080/capture \
         -H "Content-Type: application/json" \
         -d '{"url": "https://example.com", "format": "png"}'
    ```
@@ -80,11 +80,3 @@ Pixashot is open source software licensed under the MIT license. See the [LICENS
 - [GitHub Issues](https://github.com/yourusername/pixashot/issues) for bug reports and feature requests
 - [GitHub Discussions](https://github.com/yourusername/pixashot/discussions) for questions and community discussions
 - Follow us on [Twitter](https://twitter.com/pixashot) for updates
-
-## 🙏 Acknowledgements
-
-Pixashot is built with amazing open source software, including Flask, Playwright, and more. Check out our [Acknowledgements](docs/acknowledgements.md) page for a full list.
-
----
-
-Made with ❤️ by the Pixashot team

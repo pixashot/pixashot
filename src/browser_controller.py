@@ -96,7 +96,11 @@ class BrowserController:
         try:
             page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
             self.wait_for_network_idle(page, self.NETWORK_IDLE_TIMEOUT_MS)
-            self._set_viewport_and_scroll(page, window_width, window_height)
+            full_height = page.evaluate('document.body.scrollHeight')
+            if full_height > self.MAX_VIEWPORT_HEIGHT:
+                full_height = self.MAX_VIEWPORT_HEIGHT
+
+            self._set_viewport_and_scroll(page, window_width, full_height)
         except Exception as e:
             logger.error(f"Error preparing for full page screenshot: {str(e)}")
             raise BrowserException(f"Failed to prepare for full page screenshot: {str(e)}")

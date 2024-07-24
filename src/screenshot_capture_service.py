@@ -126,6 +126,21 @@ class ScreenshotCaptureService:
             logger.error(f"Error cropping screenshot: {str(e)}")
             raise ScreenshotServiceException(f"Failed to crop screenshot: {str(e)}")
 
+    def capture_html(self, page, options):
+        try:
+            if options.html_wait_for_selector:
+                page.wait_for_selector(options.html_wait_for_selector, timeout=options.html_wait_for_timeout)
+
+            if options.html_include_resources:
+                html = page.content()
+            else:
+                html = page.inner_html('body')
+
+            return html
+        except Exception as e:
+            logger.error(f"Error capturing HTML: {str(e)}")
+            raise ScreenshotServiceException(f"Failed to capture HTML: {str(e)}")
+
     def capture_pdf(self, page, output_path, options):
         try:
             pdf_options = {
