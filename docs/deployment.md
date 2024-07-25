@@ -43,6 +43,35 @@ This guide provides steps to deploy Pixashot to Google Cloud Run using Cloud Bui
    gcloud run services describe pixashot-service --platform managed --region us-central1 --format 'value(status.url)'
    ```
 
+## Configuring Rate Limiting
+
+Pixashot supports rate limiting to prevent abuse and ensure fair usage of the service. You can configure rate limiting using environment variables:
+
+1. **Enable rate limiting**:
+   Set the `RATE_LIMIT_ENABLED` environment variable to `true`:
+   ```bash
+   gcloud run services update pixashot-service \
+     --set-env-vars RATE_LIMIT_ENABLED=true
+   ```
+
+2. **Set rate limit**:
+   Configure the rate limit using the `RATE_LIMIT_CAPTURE` environment variable. For example, to set a limit of 10 requests per minute:
+   ```bash
+   gcloud run services update pixashot-service \
+     --set-env-vars RATE_LIMIT_CAPTURE="10 per minute"
+   ```
+
+   You can adjust the rate limit as needed, using formats like "1 per second", "100 per hour", etc.
+
+3. **Apply both settings at once**:
+   You can set multiple environment variables in a single command:
+   ```bash
+   gcloud run services update pixashot-service \
+     --set-env-vars RATE_LIMIT_ENABLED=true,RATE_LIMIT_CAPTURE="10 per minute"
+   ```
+
+Remember to adjust these settings based on your specific requirements and the expected load on your service.
+
 ## Automating Deployment
 
 To fully automate the build and deploy process, extend your `cloudbuild.yaml` to include the deployment step.
