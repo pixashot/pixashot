@@ -4,6 +4,7 @@
 WORKERS=4
 THREADS=1
 TIMEOUT=300
+PORT="${PORT:-8080}"  # Use the PORT env var if set, otherwise default to 8080
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -24,6 +25,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --port)
+      PORT="$2"
+      shift
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -31,8 +37,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Use PORT environment variable, defaulting to 8080 if not set
-PORT="${PORT:-8080}"
+# Validate PORT
+if ! [[ "$PORT" =~ ^[0-9]+$ ]] ; then
+   echo "Warning: Invalid PORT value. Using default port 8080."
+   PORT=8080
+fi
 
 # Start Xvfb with a high-density screen size (3840x2160) to simulate a retina display
 Xvfb :99 -ac -screen 0 3840x2160x24 -dpi 192 &
