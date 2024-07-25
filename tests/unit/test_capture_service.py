@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import Mock, patch, call
 from src.capture_service import CaptureService
 from src.exceptions import ScreenshotServiceException
+from src.capture_request import Geolocation
 
 @pytest.fixture
 def capture_service():
@@ -29,11 +30,10 @@ def mock_options():
         wait_for_timeout=5000,
         image_quality=80,
         omit_background=False,
-        geolocation={
-            "latitude": 37.7749,
-            "longitude": -122.4194,
-            "accuracy": 100
-        }
+        window_width=1280,
+        window_height=720,
+        pixel_density=2.0,
+        geolocation=Geolocation(latitude=37.7749, longitude=-122.4194, accuracy=100)
     )
     return options
 
@@ -46,49 +46,73 @@ def test_capture_screenshot(mock_sync_playwright, capture_service, mock_playwrig
     mock_set_geolocation = Mock()
 
     def mock_prepare_page(page, options):
-        print(f"Inside mock_prepare_page")
-        print(f"options.geolocation: {options.geolocation}")
         if options.geolocation:
-            print("Calling set_geolocation")
             mock_set_geolocation(page, options.geolocation)
 
     with patch.object(capture_service.browser_controller, 'prepare_page', side_effect=mock_prepare_page):
         with patch.object(capture_service.browser_controller.geolocation_controller, 'set_geolocation', mock_set_geolocation):
             capture_service.capture_screenshot("output.png", mock_options)
 
-    print(f"mock_set_geolocation.call_count: {mock_set_geolocation.call_count}")
-    print(f"mock_set_geolocation.call_args_list: {mock_set_geolocation.call_args_list}")
-
-    # Assert that goto was called
     mock_page.goto.assert_called_with(
         "https://example.com",
         wait_until='domcontentloaded',
         timeout=5000.0
     )
 
-    # Assert that set_geolocation was called
     mock_set_geolocation.assert_called_once_with(mock_page, mock_options.geolocation)
 
-    # Assert that screenshot was called
     mock_page.screenshot.assert_called_once()
 
 
 @patch('src.capture_service.sync_playwright')
-def test_capture_full_page_screenshot(mock_sync_playwright, capture_service, mock_playwright, mock_context, mock_page,
-                                      mock_options):
+@patch('PIL.Image.open')
+@patch('src.capture_service.CaptureService._crop_screenshot_if_necessary')
+def test_capture_full_page_screenshot(mock_crop, mock_image_open, mock_sync_playwright, capture_service, mock_playwright, mock_context, mock_page, mock_options):
     mock_sync_playwright.return_value.__enter__.return_value = mock_playwright
     mock_playwright.chromium.launch_persistent_context.return_value = mock_context
     mock_context.new_page.return_value = mock_page
     mock_options.full_page = True
+    mock_options.window_width = 1280
+    mock_options.window_height = 720
+    mock_options.pixel_density = 2.0
+    mock_options.format = "png"
+    mock_options.image_quality = None  # PNG doesn't use quality
 
-    capture_service.capture_screenshot("output.png", mock_options)
+    # Mock the evaluate method to return a valid height
+    mock_page.evaluate.return_value = 10000
+
+    # Create a mock image
+    mock_image = Mock()
+    mock_image.width = 2560  # This is greater than window_width * pixel_density
+    mock_image.height = 10000
+    mock_image_open.return_value.__enter__.return_value = mock_image
+
+    with patch.object(capture_service.browser_controller.screenshot_controller, 'MAX_VIEWPORT_HEIGHT', 20000):
+        capture_service.capture_screenshot("output.png", mock_options)
 
     mock_page.screenshot.assert_called_with(
         path="output.png",
         full_page=True,
-        quality=80,
+        quality=None,
         omit_background=False,
         type="png"
+    )
+
+    # Assert that _crop_screenshot_if_necessary was called
+    mock_crop.assert_called_once_with("output.png", mock_options.window_width, mock_options.pixel_density)
+
+    # Test with JPEG format
+    mock_options.format = "jpeg"
+    mock_options.image_quality = 80
+
+    capture_service.capture_screenshot("output.jpg", mock_options)
+
+    mock_page.screenshot.assert_called_with(
+        path="output.jpg",
+        full_page=True,
+        quality=80,
+        omit_background=False,
+        type="jpeg"
     )
 
 
