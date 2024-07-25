@@ -20,8 +20,10 @@ class ContextCreator:
     def _get_extensions(self, options):
         extensions = []
         if options.use_popup_blocker:
+            # Load: https://chromewebstore.google.com/detail/popupoff-popup-and-overla/ifnkdbpmgkdbfklnbfidaackdenlmhgh?hl=en
             extensions.append(os.path.join(self.extension_dir, 'popup-off'))
         if options.use_cookie_blocker:
+            # Load: https://chromewebstore.google.com/detail/i-dont-care-about-cookies/fihnjjcciajhdojfnbdddfaoknhalnja
             extensions.append(os.path.join(self.extension_dir, 'dont-care-cookies'))
         return extensions
 

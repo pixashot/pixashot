@@ -15,7 +15,7 @@ Pixashot is a powerful, flexible, and easy-to-use web screenshot service. Built 
 - 🎨 Configurable image quality and pixel density
 - 🐳 Docker support for easy deployment
 
-[Learn more about Pixashot's features](docs/features.md)
+[Learn more about Pixashot's features](docs/features.md) and check the [API examples](docs/api-examples.md).
 
 ## 🚀 Quickstart
 
@@ -77,6 +77,12 @@ Pixashot is open source software licensed under the MIT license. See the [LICENS
 
 ## 🌐 Community and Support
 
-- [GitHub Issues](https://github.com/yourusername/pixashot/issues) for bug reports and feature requests
-- [GitHub Discussions](https://github.com/yourusername/pixashot/discussions) for questions and community discussions
+- [GitHub Issues](https://github.com/gregpriday/pixashot/issues) for bug reports and feature requests
+- [GitHub Discussions](https://github.com/gregpriday/pixashot/discussions) for questions and community discussions
 - Follow us on [Twitter](https://twitter.com/pixashot) for updates
+- Read our [troubleshooting guide](docs/troubleshooting.md).
+
+## Acknowledgements
+
+- Pixashot is build using [Flask](https://flask.palletsprojects.com/en/3.0.x/) and [Playwright](https://playwright.dev/).
+- We use [PopUpOFF](https://chromewebstore.google.com/detail/popupoff-popup-and-overla/ifnkdbpmgkdbfklnbfidaackdenlmhgh?hl=en) and [I don't care about cookies](https://chromewebstore.google.com/detail/i-dont-care-about-cookies/fihnjjcciajhdojfnbdddfaoknhalnja) to help create clean screenshots.
