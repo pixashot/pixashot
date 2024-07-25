@@ -28,6 +28,18 @@ curl -X POST http://your-service-url/capture \
          }'
 ```
 
+## Capture with Delay
+
+```bash
+curl -X POST http://your-service-url/capture \
+     -H "Content-Type: application/json" \
+     -d '{
+           "url": "https://example.com",
+           "format": "png",
+           "delay_capture": 5000
+         }'
+```
+
 ## Capture PDF with Custom Options
 
 ```bash

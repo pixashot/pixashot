@@ -49,6 +49,7 @@ class CaptureRequest(BaseModel):
     # Wait and timeout options
     wait_for_timeout: Optional[PositiveInt] = Field(5000, description="Timeout in milliseconds to wait for page load")
     wait_for_selector: Optional[str] = Field(None, description="Wait for a specific selector to appear in DOM")
+    delay_capture: Optional[PositiveInt] = Field(0, description="Delay in milliseconds before taking the screenshot")
 
     # JavaScript and extension options
     custom_js: Optional[str] = Field(None,

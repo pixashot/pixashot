@@ -37,6 +37,10 @@ class CaptureService:
 
                     self._prepare_page(page, options)
 
+                    if options.delay_capture > 0:
+                        logger.info(f"Delaying capture for {options.delay_capture}ms...")
+                        page.wait_for_timeout(options.delay_capture)
+
                     if options.format == 'pdf':
                         logger.info('Capturing PDF...')
                         self.capture_pdf(page, output_path, options)
