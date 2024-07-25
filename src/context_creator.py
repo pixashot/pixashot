@@ -15,6 +15,10 @@ class ContextCreator:
         if options.block_media:
             context_options['route_handler'] = self._block_media
 
+        # Apply custom headers if provided
+        if options.custom_headers:
+            context_options['extra_http_headers'] = options.custom_headers
+
         return playwright.chromium.launch_persistent_context(**context_options)
 
     def _get_extensions(self, options):

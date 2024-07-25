@@ -1,4 +1,4 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, Dict
 from pydantic import BaseModel, HttpUrl, Field, PositiveInt, PositiveFloat, conint, confloat, model_validator
 
 
@@ -64,6 +64,7 @@ class CaptureRequest(BaseModel):
     # Network and resource options
     ignore_https_errors: Optional[bool] = Field(True, description="Ignore HTTPS errors during navigation")
     block_media: Optional[bool] = Field(False, description="Block images, video, and audio from loading")
+    custom_headers: Optional[Dict[str, str]] = Field(None, description="Custom headers to be sent with the request")
 
     # Proxy options
     proxy_server: Optional[str] = Field(None, description="Proxy server address")
@@ -94,6 +95,15 @@ class CaptureRequest(BaseModel):
             for field in pdf_fields:
                 if getattr(self, field) is not None:
                     setattr(self, field, None)
+        return self
+
+    @model_validator(mode='after')
+    def validate_custom_headers(self) -> 'CaptureRequest':
+        if self.custom_headers:
+            # Validate that header names are strings and don't contain invalid characters
+            for header_name in self.custom_headers.keys():
+                if not isinstance(header_name, str) or ':' in header_name:
+                    raise ValueError(f"Invalid header name: {header_name}")
         return self
 
     model_config = {
