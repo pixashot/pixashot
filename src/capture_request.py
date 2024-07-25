@@ -1,4 +1,4 @@
-from typing import Optional, Literal, Dict
+from typing import Optional, Literal, Dict, List
 from pydantic import BaseModel, HttpUrl, Field, PositiveInt, PositiveFloat, conint, confloat, model_validator
 
 
@@ -13,6 +13,15 @@ class Geolocation(BaseModel):
                     self.longitude == other['longitude'] and
                     self.accuracy == other['accuracy'])
         return super().__eq__(other)
+
+
+class InteractionStep(BaseModel):
+    action: Literal["click", "type", "wait", "hover", "scroll"]
+    selector: Optional[str] = None
+    text: Optional[str] = None
+    duration: Optional[PositiveInt] = None
+    x: Optional[int] = None
+    y: Optional[int] = None
 
 
 def validate_url_or_html_content(v):
@@ -66,6 +75,10 @@ class CaptureRequest(BaseModel):
     block_media: Optional[bool] = Field(False, description="Block images, video, and audio from loading")
     custom_headers: Optional[Dict[str, str]] = Field(None, description="Custom headers to be sent with the request")
 
+    interact_before_capture: Optional[List[InteractionStep]] = Field(None,
+                                                                     description="List of interaction steps to perform before capturing")
+    wait_for_animation: Optional[bool] = Field(False, description="Wait for animations to complete before capturing")
+
     # Proxy options
     proxy_server: Optional[str] = Field(None, description="Proxy server address")
     proxy_port: Optional[conint(ge=1, le=65535)] = Field(None, description="Proxy server port")
@@ -91,7 +104,8 @@ class CaptureRequest(BaseModel):
     @model_validator(mode='after')
     def check_pdf_options(self) -> 'CaptureRequest':
         if self.format != 'pdf':
-            pdf_fields = ['pdf_print_background', 'pdf_scale', 'pdf_page_ranges', 'pdf_format', 'pdf_width', 'pdf_height']
+            pdf_fields = ['pdf_print_background', 'pdf_scale', 'pdf_page_ranges', 'pdf_format', 'pdf_width',
+                          'pdf_height']
             for field in pdf_fields:
                 if getattr(self, field) is not None:
                     setattr(self, field, None)

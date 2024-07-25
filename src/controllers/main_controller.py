@@ -1,5 +1,7 @@
 import logging
 from playwright.sync_api import Page
+
+from controllers.interaction_controller import InteractionController
 from exceptions import BrowserException
 from controllers.navigation_controller import NavigationController
 from controllers.content_controller import ContentController
@@ -15,6 +17,7 @@ class MainBrowserController:
         self.content_controller = ContentController()
         self.screenshot_controller = ScreenshotController()
         self.geolocation_controller = GeolocationController()
+        self.interaction_controller = InteractionController()
 
     def prepare_page(self, page: Page, options):
         try:
@@ -29,6 +32,12 @@ class MainBrowserController:
                 self.navigation_controller.wait_for_network_idle(page, options.wait_for_timeout)
             elif options.wait_for_network == 'mostly_idle':
                 self.navigation_controller.wait_for_network_mostly_idle(page, options.wait_for_timeout)
+
+            if options.interact_before_capture:
+                self.interaction_controller.perform_interactions(page, options.interact_before_capture)
+
+            if options.wait_for_animation:
+                self.interaction_controller.wait_for_animations(page)
 
             if options.custom_js:
                 self.content_controller.execute_custom_js(page, options.custom_js)

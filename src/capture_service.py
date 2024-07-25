@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 from context_creator import ContextCreator
 from controllers.main_controller import MainBrowserController
 from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException, \
-    JavaScriptExecutionException, TimeoutException
+    JavaScriptExecutionException, TimeoutException, InteractionException
 from PIL import Image
 import io
 
@@ -54,7 +54,7 @@ class CaptureService:
                     logger.info(f'Capture complete! Total time: {time.time() - start_time:.2f}s')
                     return
             except (BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException,
-                    TimeoutException) as e:
+                    TimeoutException, InteractionException) as e:
                 logger.error(f'Error during capture (attempt {attempt + 1}/{max_retries + 1}): {str(e)}')
                 if attempt < max_retries:
                     time.sleep(retry_delay)
