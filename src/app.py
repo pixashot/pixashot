@@ -9,6 +9,8 @@ from logging.config import dictConfig
 from urllib.parse import urlparse
 
 from flask import Flask, abort, after_this_request, request, send_file, make_response
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from config import get_logging_config
 from capture_request import CaptureRequest
@@ -22,6 +24,18 @@ app = Flask(__name__)
 
 # Create a single instance of CaptureService
 capture_service = CaptureService()
+
+# Read rate limiting configuration from environment variables
+RATE_LIMIT_ENABLED = os.environ.get('RATE_LIMIT_ENABLED', 'False').lower() == 'true'
+RATE_LIMIT_CAPTURE = os.environ.get('RATE_LIMIT_CAPTURE', '1 per second')
+
+# Initialize rate limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://"
+)
 
 
 @app.before_request
@@ -38,6 +52,7 @@ def auth_token_middleware():
 
 
 @app.route('/capture', methods=['POST'])
+@limiter.limit(RATE_LIMIT_CAPTURE) if RATE_LIMIT_ENABLED else limiter.exempt
 def capture():
     try:
         options = CaptureRequest(**request.json)
