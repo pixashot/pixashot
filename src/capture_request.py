@@ -29,9 +29,9 @@ class CaptureRequest(BaseModel):
     html_content: Optional[str] = Field(None, description="HTML content to render and capture")
 
     # Viewport and screenshot options
-    window_width: PositiveInt = Field(1280, description="The width of the browser viewport (pixels)")
-    window_height: PositiveInt = Field(720, description="The height of the browser viewport (pixels)")
-    full_page: Optional[bool] = Field(False, description="Take a screenshot of the full page")
+    window_width: PositiveInt = Field(1920, description="The width of the browser viewport (pixels)")
+    window_height: PositiveInt = Field(1080, description="The height of the browser viewport (pixels)")
+    full_page: Optional[bool] = Field(False, description="Take a screenshot of the full page (scrolled to the bottom)")
     selector: Optional[str] = Field(None, description="CSS-like selector of the element to take a screenshot of")
 
     # Format and response options
@@ -41,15 +41,15 @@ class CaptureRequest(BaseModel):
                                                                            description="Response type: by_format, empty, json")
 
     # Image options
-    image_quality: Optional[conint(ge=0, le=100)] = Field(80, description="Image quality (0-100)")
-    pixel_density: Optional[PositiveFloat] = Field(2.0, description="Device scale factor (DPR)")
+    image_quality: Optional[conint(ge=0, le=100)] = Field(90, description="Image quality (0-100)")
+    pixel_density: Optional[PositiveFloat] = Field(1.0, description="Device scale factor (DPR)")
     omit_background: Optional[bool] = Field(False, description="Render a transparent background for the image")
     dark_mode: Optional[bool] = Field(False, description="Enable dark mode for the screenshot")
 
     # Wait and timeout options
     wait_for_timeout: Optional[PositiveInt] = Field(5000, description="Timeout in milliseconds to wait for page load")
     wait_for_selector: Optional[str] = Field(None, description="Wait for a specific selector to appear in DOM")
-    delay_capture: Optional[PositiveInt] = Field(0, description="Delay in milliseconds before taking the screenshot")
+    delay_capture: Optional[PositiveInt] = Field(500, description="Delay in milliseconds before taking the screenshot")
 
     # JavaScript and extension options
     custom_js: Optional[str] = Field(None,
@@ -71,10 +71,10 @@ class CaptureRequest(BaseModel):
     geolocation: Optional[Geolocation] = Field(None, description="Geolocation to spoof (latitude, longitude, accuracy)")
 
     # PDF-specific options
-    pdf_print_background: Optional[bool] = Field(None, description="Print background graphics in PDF")
-    pdf_scale: Optional[PositiveFloat] = Field(None, description="Scale of the webpage rendering")
+    pdf_print_background: Optional[bool] = Field(True, description="Print background graphics in PDF")
+    pdf_scale: Optional[PositiveFloat] = Field(1.0, description="Scale of the webpage rendering")
     pdf_page_ranges: Optional[str] = Field(None, description="Paper ranges to print, e.g., '1-5, 8, 11-13'")
-    pdf_format: Optional[Literal["A4", "Letter", "Legal"]] = Field(None,
+    pdf_format: Optional[Literal["A4", "Letter", "Legal"]] = Field("A4",
                                                                    description="Paper format, e.g., 'A4', 'Letter'")
     pdf_width: Optional[str] = Field(None, description="Paper width, accepts values labeled with units")
     pdf_height: Optional[str] = Field(None, description="Paper height, accepts values labeled with units")
@@ -85,11 +85,11 @@ class CaptureRequest(BaseModel):
 
     @model_validator(mode='after')
     def check_pdf_options(self) -> 'CaptureRequest':
-        pdf_fields = ['pdf_print_background', 'pdf_scale', 'pdf_page_ranges', 'pdf_format', 'pdf_width', 'pdf_height']
         if self.format != 'pdf':
+            pdf_fields = ['pdf_print_background', 'pdf_scale', 'pdf_page_ranges', 'pdf_format', 'pdf_width', 'pdf_height']
             for field in pdf_fields:
                 if getattr(self, field) is not None:
-                    raise ValueError(f'{field} can only be set when format is "pdf"')
+                    setattr(self, field, None)
         return self
 
     model_config = {

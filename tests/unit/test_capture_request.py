@@ -21,12 +21,12 @@ def test_capture_request_valid():
 
 def test_capture_request_default_values():
     request = CaptureRequest(url="https://example.com")
-    assert request.window_width == 1280
-    assert request.window_height == 720
+    assert request.window_width == 1920
+    assert request.window_height == 1080
     assert request.format == "png"
     assert request.full_page == False
-    assert request.image_quality == 80
-    assert request.pixel_density == 2.0
+    assert request.image_quality == 90
+    assert request.pixel_density == 1.0
 
 
 def test_capture_request_invalid_url():
