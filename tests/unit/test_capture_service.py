@@ -34,6 +34,7 @@ def mock_options():
         window_width=1280,
         window_height=720,
         pixel_density=2.0,
+        delay_capture=0,
         geolocation=Geolocation(latitude=37.7749, longitude=-122.4194, accuracy=100)
     )
     return options
