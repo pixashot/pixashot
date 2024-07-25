@@ -4,7 +4,6 @@ Pixashot is a powerful, flexible, and developer-friendly web screenshot service 
 
 ## ✨ Why Choose Pixashot?
 
-- 🚀 **Lightning-fast**: Capture screenshots in milliseconds
 - 🎨 **Pixel-perfect quality**: Renders for any screen size, including Retina displays
 - 🔧 **Highly customizable**: Supports dark mode, custom JavaScript injection, and more
 - 🌐 **Full-page capture**: Takes screenshots of entire web pages, including lazy-loaded content
@@ -57,7 +56,10 @@ That's it! Pixashot is now running in a Docker container, ready to capture scree
 ## 🌟 Features
 
 - 📸 Capture full-page or viewport-specific screenshots
-- 🖼️ Support for multiple image formats (PNG, JPEG, WebP)
+- 🖼️ Support for multiple output formats: PNG, JPEG, WebP, PDF, and HTML
+- 📄 Capture from URLs or raw HTML input
+- 🖨️ Generate high-quality PDFs with customizable options
+- 🔄 Capture HTML output, perfect for scraping JavaScript-rendered pages
 - 📱 Custom viewport size configuration
 - ⏱️ Wait for specific page elements before capture
 - 🧰 Custom JavaScript injection for page manipulation
@@ -65,7 +67,9 @@ That's it! Pixashot is now running in a Docker container, ready to capture scree
 - 🔒 Proxy support for accessing restricted content
 - 📜 Scroll-to-bottom functionality for dynamic content
 - 🎨 Configurable image quality and pixel density
-- 🐳 Docker support for easy deployment
+- 🌓 Dark mode support for captures
+- 📍 Geolocation spoofing capabilities
+- 🐳 Docker support for easy deployment and scalability
 
 [Learn more about Pixashot's features](docs/features.md) and check out our [API examples](docs/api-examples.md).
 
