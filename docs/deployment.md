@@ -1,6 +1,6 @@
 # Deployment
 
-This guide provides steps to deploy Pixashot to Google Cloud Run using Cloud Build.
+This guide provides steps to deploy Pixashot to Google Cloud Run using Cloud Build. You can also deploy to Google Cloud Run directly from Docker Hub by following [this guide](deploy-from-dockerhub.md).
 
 ## Prerequisites
 

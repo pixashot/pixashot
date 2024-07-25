@@ -9,7 +9,7 @@ Pixashot is a powerful, flexible, and developer-friendly web screenshot service 
 - 🌐 **Full-page capture**: Takes screenshots of entire web pages, including lazy-loaded content
 - 🛡️ **Built-in blockers**: Removes annoying popups, cookie banners, and ads
 - 🔒 **Secure**: Supports proxy configuration and HTTPS error handling
-- 💰 **Cost-effective**: Deploy on Google Cloud Run's free tier and capture over 10,000 screenshots per month at no cost!
+- 💰 **Cost-effective**: [Deploy on Google Cloud Run](docs/deploy-from-dockerhub.md) - their free tier and capture over 10,000 screenshots per month at no cost!
 
 ## 🚀 Quick Start with Docker
 
@@ -52,6 +52,7 @@ That's it! Pixashot is now running in a Docker container, ready to capture scree
 - [Configuration Options](docs/configuration.md)
 - [Advanced Features](docs/advanced.md)
 - [Deployment Guide](docs/deployment.md)
+- [Deploy on Google Cloud Run](docs/deploy-from-dockerhub.md)
 
 ## 🌟 Features
 
