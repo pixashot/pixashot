@@ -65,7 +65,6 @@ That's it! Pixashot is now running in a Docker container, ready to capture scree
 - 🧰 Custom JavaScript injection for page manipulation
 - 🚫 Built-in popup and cookie consent blockers
 - 🔒 Proxy support for accessing restricted content
-- 📜 Scroll-to-bottom functionality for dynamic content
 - 🎨 Configurable image quality and pixel density
 - 🌓 Dark mode support for captures
 - 📍 Geolocation spoofing capabilities
