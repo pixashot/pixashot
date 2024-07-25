@@ -28,7 +28,7 @@ RUN playwright install --with-deps chromium
 RUN playwright install-deps
 
 # Copy the application code and entry script to the container
-COPY src/ ./src/
+COPY src/ .
 COPY entry.sh .
 RUN chmod +x ./entry.sh
 
