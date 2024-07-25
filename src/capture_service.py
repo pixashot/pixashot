@@ -58,7 +58,11 @@ class CaptureService:
                 raise ScreenshotServiceException(f"Failed to capture after {max_retries} attempts: {str(e)}")
             except Exception as e:
                 logger.exception("Unexpected error during capture")
-                raise ScreenshotServiceException(f"Unexpected error during capture: {str(e)}")
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+                    continue
+                raise ScreenshotServiceException(
+                    f"Failed to capture after {max_retries} attempts due to unexpected error: {str(e)}")
 
     def _prepare_page(self, page, options):
         start_time = time.time()
