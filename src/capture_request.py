@@ -47,9 +47,13 @@ class CaptureRequest(BaseModel):
     dark_mode: Optional[bool] = Field(False, description="Enable dark mode for the screenshot")
 
     # Wait and timeout options
-    wait_for_timeout: Optional[PositiveInt] = Field(5000, description="Timeout in milliseconds to wait for page load")
+    wait_for_timeout: Optional[PositiveInt] = Field(2000, description="Timeout in milliseconds to wait for page load")
     wait_for_selector: Optional[str] = Field(None, description="Wait for a specific selector to appear in DOM")
-    delay_capture: Optional[PositiveInt] = Field(500, description="Delay in milliseconds before taking the screenshot")
+    delay_capture: Optional[PositiveInt] = Field(0, description="Delay in milliseconds before taking the screenshot")
+    wait_for_network: Literal["idle", "mostly_idle"] = Field(
+        "network_mostly_idle",
+        description="Specify whether to wait for the network to be mostly idle or completely idle"
+    )
 
     # JavaScript and extension options
     custom_js: Optional[str] = Field(None,

@@ -24,7 +24,11 @@ class MainBrowserController:
                 self.content_controller.apply_dark_mode(page)
             if options.geolocation:
                 self.geolocation_controller.set_geolocation(page, options.geolocation)
-            self.navigation_controller.wait_for_network_idle(page, options.wait_for_timeout)
+
+            if options.wait_for_network == 'idle':
+                self.navigation_controller.wait_for_network_idle(page, options.wait_for_timeout)
+            elif options.wait_for_network == 'mostly_idle':
+                self.navigation_controller.wait_for_network_mostly_idle(page, options.wait_for_timeout)
 
             if options.custom_js:
                 self.content_controller.execute_custom_js(page, options.custom_js)

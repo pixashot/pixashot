@@ -1,3 +1,5 @@
+import time
+
 from playwright.sync_api import Page, TimeoutError
 from exceptions import TimeoutException
 from controllers.base_controller import BaseBrowserController
@@ -20,6 +22,41 @@ class NavigationController(BaseBrowserController):
         except TimeoutError:
             logger.warning(f"Timeout waiting for network idle: {timeout}ms")
             logger.warning("Proceeding with capture despite network not being completely idle")
+
+    def wait_for_network_mostly_idle(self, page: Page, timeout: float = 5.0, idle_threshold: int = 2, min_wait: float = 0.5):
+        def get_network_activity():
+            return page.evaluate('''() => {
+                const resources = performance.getEntriesByType('resource');
+                const recentResources = resources.filter(r => r.responseEnd > performance.now() - 1000);
+                const pendingRequests = window.performance.getEntriesByType('resource').filter(r => !r.responseEnd).length;
+                return {
+                    recentRequests: recentResources.length,
+                    pendingRequests: pendingRequests
+                };
+            }''')
+
+        start_time = time.time()
+        previous_activity = get_network_activity()
+        check_interval = 0.1
+
+        while time.time() - start_time < timeout:
+            time.sleep(check_interval)
+            current_activity = get_network_activity()
+
+            activity_delta = (
+                abs(current_activity['recentRequests'] - previous_activity['recentRequests']) +
+                abs(current_activity['pendingRequests'] - previous_activity['pendingRequests'])
+            )
+
+            if activity_delta <= idle_threshold and time.time() - start_time >= min_wait:
+                logger.info("Network considered mostly idle")
+                return True  # Network is considered mostly idle
+
+            previous_activity = current_activity
+            check_interval = min(check_interval * 1.5, 0.5)  # Exponential backoff, max 0.5 second
+
+        logger.warning(f"Network did not become mostly idle within {timeout} seconds")
+        return False
 
     def wait_for_selector(self, page: Page, selector: str, timeout: int):
         try:
