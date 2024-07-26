@@ -4,3 +4,4 @@ hypercorn
 playwright
 pydantic
 Pillow
+tenacity

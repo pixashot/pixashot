@@ -4,8 +4,11 @@ from playwright.async_api import Page
 from context_manager import ContextManager
 from controllers.main_controller import MainBrowserController
 from exceptions import ScreenshotServiceException
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity.after import after_log
 
 logger = logging.getLogger(__name__)
+
 
 class CaptureService:
     def __init__(self, playwright=None):
@@ -16,28 +19,21 @@ class CaptureService:
         self.context_manager = ContextManager(playwright)
         await self.context_manager.initialize(playwright)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(Exception),
+        after=after_log(logger, logging.ERROR)
+    )
     async def capture_screenshot(self, output_path, options):
-        max_retries = 2
-        retry_delay = 1
+        context = await self.context_manager.get_context(options)
+        page = await context.new_page()
 
-        for attempt in range(max_retries + 1):
-            try:
-                context = await self.context_manager.get_context(options)
-                page = await context.new_page()
-
-                await self._configure_page(page, options)
-                await self._load_content(page, options)
-                await self._prepare_page(page, options)
-                await self._perform_interactions(page, options)
-                await self._perform_capture(page, output_path, options)
-
-                return
-            except Exception as e:
-                logger.error(f'Error during capture (attempt {attempt + 1}/{max_retries + 1}): {str(e)}')
-                if attempt < max_retries:
-                    await asyncio.sleep(retry_delay)
-                    continue
-                raise ScreenshotServiceException(f"Failed to capture after {max_retries} attempts: {str(e)}")
+        await self._configure_page(page, options)
+        await self._load_content(page, options)
+        await self._prepare_page(page, options)
+        await self._perform_interactions(page, options)
+        await self._perform_capture(page, output_path, options)
 
     async def _configure_page(self, page: Page, options):
         await page.set_viewport_size({"width": options.window_width, "height": options.window_height})
