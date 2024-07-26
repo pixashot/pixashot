@@ -3,6 +3,7 @@ from playwright.async_api import async_playwright
 from src.app import app
 from src.capture_service import CaptureService
 
+
 @pytest.fixture(scope='module')
 async def initialized_app():
     async with async_playwright() as playwright:
@@ -10,9 +11,11 @@ async def initialized_app():
         yield app
         await app.capture_service.close()
 
+
 @pytest.fixture
 async def test_client(initialized_app):
     return initialized_app.test_client()
+
 
 @pytest.mark.asyncio
 async def test_screenshot_endpoint(test_client):
@@ -37,6 +40,7 @@ async def test_screenshot_endpoint(test_client):
 
     # Check if the response has content
     assert len(await response.get_data()) > 0
+
 
 if __name__ == '__main__':
     pytest.main([__file__, "-v"])
