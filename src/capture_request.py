@@ -53,6 +53,16 @@ class CaptureRequest(BaseModel):
     full_page: Optional[bool] = Field(False, description="Take a screenshot of the full page (scrolled to the bottom)")
     selector: Optional[str] = Field(None, description="CSS-like selector of the element to take a screenshot of")
 
+    # Random user agent settings
+    use_random_user_agent: Optional[bool] = Field(False, description="Use a random user agent")
+    user_agent_device: Optional[Literal['desktop', 'mobile']] = Field(None,
+                                                                      description="Device type for user agent generation")
+    user_agent_platform: Optional[Literal['windows', 'macos', 'ios', 'linux', 'android']] = Field(None,
+                                                                                                  description="Platform for user agent generation")
+    user_agent_browser: Optional[Literal['chrome', 'edge', 'firefox', 'safari']] = Field('chrome',
+                                                                                         description="Browser for user agent generation")
+    custom_headers: Optional[Dict[str, str]] = Field(None, description="Custom headers to be sent with the request")
+
     # Format and response options
     format: Optional[Literal["png", "jpeg", "webp", "pdf", "html"]] = Field("png",
                                                                             description="Response format: png, jpeg, webp, pdf, html")

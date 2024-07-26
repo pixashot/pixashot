@@ -26,7 +26,8 @@ Send a JSON payload to the `/capture` endpoint with the screenshot options.
   "format": "png",
   "full_page": true,
   "wait_for_timeout": 5000,
-  "custom_js": "document.body.style.backgroundColor = 'lightblue';"
+  "custom_js": "document.body.style.backgroundColor = 'lightblue';",
+  "use_random_user_agent": true
 }
 ```
 
@@ -59,6 +60,11 @@ Send a JSON payload to the `/capture` endpoint with the screenshot options.
 | proxy_username | string | - | Username for proxy authentication |
 | proxy_password | string | - | Password for proxy authentication |
 | geolocation | object | - | Geolocation to spoof: `{"latitude": float, "longitude": float, "accuracy": float}` |
+| use_random_user_agent | boolean | false | Use a random user agent |
+| user_agent_device | string | - | Device type for user agent generation: "desktop" or "mobile" |
+| user_agent_platform | string | - | Platform for user agent generation: "windows", "macos", "ios", "linux", or "android" |
+| user_agent_browser | string | "chrome" | Browser for user agent generation: "chrome", "edge", "firefox", or "safari" |
+| custom_headers | object | - | Custom headers to be sent with the request |
 
 ### PDF-specific Options
 
@@ -197,5 +203,30 @@ curl -X POST https://api.pixashot.com/capture \
     }
   }'
 ```
+
+### Capture with Random User Agent
+
+```bash
+curl -X POST https://api.pixashot.com/capture \
+  -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "format": "png",
+    "use_random_user_agent": true,
+    "user_agent_device": "desktop",
+    "user_agent_platform": "windows",
+    "user_agent_browser": "chrome"
+  }'
+```
+
+This request will include randomly generated headers, such as:
+
+- `user-agent`: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.94 Safari/537.36
+- `sec-ch-ua`: "Not A(Brand";v="99", "Chromium";v="122", "Google Chrome";v="122"
+- `sec-ch-ua-mobile`: ?0
+- `sec-ch-ua-platform`: "Windows"
+
+Note: The actual values will vary based on the randomly generated user agent.
 
 For more examples and detailed information on using the Pixashot API, please refer to the [API Examples](api-examples.md) documentation.

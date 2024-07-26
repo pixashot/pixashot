@@ -6,6 +6,7 @@ from controllers.main_controller import MainBrowserController
 from exceptions import ScreenshotServiceException
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from tenacity.after import after_log
+import ua_generator
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,21 @@ class CaptureService:
     async def _configure_page(self, page: Page, options):
         await page.set_viewport_size({"width": options.window_width, "height": options.window_height})
 
+        headers = {}
+        if options.use_random_user_agent:
+            ua = ua_generator.generate(
+                device=options.user_agent_device,
+                platform=options.user_agent_platform,
+                browser=options.user_agent_browser
+            )
+            headers = ua.headers.get()
+
+        if options.custom_headers:
+            headers.update(options.custom_headers)
+
+        if headers:
+            await page.set_extra_http_headers(headers)
+
         if options.proxy_server and options.proxy_port:
             await page.route("**/*", lambda route: route.continue_({
                 "proxy": {
@@ -46,9 +62,6 @@ class CaptureService:
                     "password": options.proxy_password
                 }
             }))
-
-        if options.custom_headers:
-            await page.set_extra_http_headers(options.custom_headers)
 
         if options.block_media:
             await page.route("**/*.{png,jpg,jpeg,gif,svg,ico,mp4,webm,ogg,mp3,wav}", lambda route: route.abort())
