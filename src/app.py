@@ -1,13 +1,11 @@
+import os
 import base64
 import logging
-import os
 import random
 import tempfile
 import time
 import traceback
 from logging.config import dictConfig
-from contextlib import asynccontextmanager
-from urllib.parse import urlparse
 from io import BytesIO
 
 from quart import Quart, abort, request, send_file, make_response
@@ -18,6 +16,7 @@ from capture_request import CaptureRequest
 from capture_service import CaptureService
 from exceptions import ScreenshotServiceException
 from playwright.async_api import async_playwright
+from request_auth import is_authenticated
 
 # Configure logging
 dictConfig(get_logging_config())
@@ -47,16 +46,9 @@ async def shutdown():
 
 
 @app.before_request
-async def auth_token_middleware():
-    if os.environ.get('AUTH_TOKEN'):
-        auth_header = request.headers.get('Authorization')
-        token = auth_header.split(' ')[1] if auth_header else None
-
-        if not token:
-            abort(401, description="Authorization token is missing.")
-
-        if token != os.environ.get('AUTH_TOKEN'):
-            abort(403, description="Invalid authorization token.")
+async def auth_middleware():
+    if not is_authenticated(request):
+        abort(401, description="Authentication failed. Provide a valid auth token or use a signed URL.")
 
 
 def apply_rate_limit(f):
