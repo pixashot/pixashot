@@ -86,7 +86,7 @@ class CaptureService:
 
     def capture_full_page_screenshot(self, page, output_path, options):
         try:
-            self.browser_controller.prepare_for_full_page_screenshot(page, options.window_width, options.window_height)
+            self.browser_controller.prepare_for_full_page_screenshot(page, options.window_width)
             self._take_screenshot(page, output_path, options, full_page=True)
             self._crop_screenshot_if_necessary(output_path, options.window_width, options.pixel_density)
         except Exception as e:

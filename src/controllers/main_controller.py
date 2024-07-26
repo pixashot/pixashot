@@ -45,8 +45,8 @@ class MainBrowserController:
     def goto_with_timeout(self, page: Page, url: str, timeout: float = 5.0):
         return self.navigation_controller.goto_with_timeout(page, url, timeout)
 
-    def prepare_for_full_page_screenshot(self, page: Page, window_width: int, window_height: int):
-        return self.screenshot_controller.prepare_for_full_page_screenshot(page, window_width, window_height)
+    def prepare_for_full_page_screenshot(self, page: Page, window_width: int):
+        return self.screenshot_controller.prepare_for_full_page_screenshot(page, window_width)
 
     def prepare_for_viewport_screenshot(self, page: Page, window_width: int, window_height: int):
         return self.screenshot_controller.prepare_for_viewport_screenshot(page, window_width, window_height)
