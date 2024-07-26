@@ -1,4 +1,4 @@
-from typing import Optional, Literal, Dict, List
+from typing import Optional, Literal, Dict, List, Union
 from pydantic import BaseModel, HttpUrl, Field, PositiveInt, PositiveFloat, conint, confloat, model_validator
 
 
@@ -15,13 +15,18 @@ class Geolocation(BaseModel):
         return super().__eq__(other)
 
 
+class WaitForOption(BaseModel):
+    type: Literal["network_idle", "network_mostly_idle", "selector", "timeout"]
+    value: Union[str, int] = Field(..., description="Selector string for 'selector', milliseconds for others")
+
+
 class InteractionStep(BaseModel):
-    action: Literal["click", "type", "wait", "hover", "scroll"]
+    action: Literal["click", "type", "hover", "scroll", "wait_for"]
     selector: Optional[str] = None
     text: Optional[str] = None
-    duration: Optional[PositiveInt] = None
     x: Optional[int] = None
     y: Optional[int] = None
+    wait_for: Optional[WaitForOption] = Field(None, description="Specifies what to wait for")
 
 
 def validate_url_or_html_content(v):
@@ -59,10 +64,6 @@ class CaptureRequest(BaseModel):
     wait_for_timeout: Optional[PositiveInt] = Field(2000, description="Timeout in milliseconds to wait for page load")
     wait_for_selector: Optional[str] = Field(None, description="Wait for a specific selector to appear in DOM")
     delay_capture: Optional[PositiveInt] = Field(0, description="Delay in milliseconds before taking the screenshot")
-    wait_for_network: Literal["idle", "mostly_idle"] = Field(
-        "network_mostly_idle",
-        description="Specify whether to wait for the network to be mostly idle or completely idle"
-    )
 
     # JavaScript and extension options
     custom_js: Optional[str] = Field(None,
@@ -75,8 +76,7 @@ class CaptureRequest(BaseModel):
     block_media: Optional[bool] = Field(False, description="Block images, video, and audio from loading")
     custom_headers: Optional[Dict[str, str]] = Field(None, description="Custom headers to be sent with the request")
 
-    interact_before_capture: Optional[List[InteractionStep]] = Field(None,
-                                                                     description="List of interaction steps to perform before capturing")
+    interactions: Optional[List[InteractionStep]] = Field(None, description="List of interaction steps to perform before capturing")
     wait_for_animation: Optional[bool] = Field(False, description="Wait for animations to complete before capturing")
 
     # Proxy options
@@ -118,6 +118,21 @@ class CaptureRequest(BaseModel):
             for header_name in self.custom_headers.keys():
                 if not isinstance(header_name, str) or ':' in header_name:
                     raise ValueError(f"Invalid header name: {header_name}")
+        return self
+
+    @model_validator(mode='after')
+    def validate_interaction_steps(self) -> 'CaptureRequest':
+        if self.interactions:
+            for step in self.interactions:
+                if step.action == "wait_for":
+                    if not step.wait_for:
+                        raise ValueError("wait_for action requires a wait_for option")
+                    if step.wait_for.type in ["network_idle", "network_mostly_idle", "timeout"]:
+                        if not isinstance(step.wait_for.value, int):
+                            raise ValueError(f"{step.wait_for.type} requires an integer value for milliseconds")
+                    elif step.wait_for.type == "selector":
+                        if not isinstance(step.wait_for.value, str):
+                            raise ValueError("selector wait_for type requires a string value")
         return self
 
     model_config = {
