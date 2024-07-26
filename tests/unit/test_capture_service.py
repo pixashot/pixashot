@@ -108,3 +108,74 @@ async def test_perform_interactions(capture_service, mock_context, mock_page, mo
 
         mock_page.click.assert_called_with("#button")
         mock_page.fill.assert_called_with("#input", "Hello")
+
+@pytest.fixture
+def mock_ua_generator():
+    with patch('src.capture_service.ua_generator') as mock_gen:
+        mock_ua = Mock()
+        mock_ua.headers.get.return_value = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+        }
+        mock_gen.generate.return_value = mock_ua
+        yield mock_gen
+
+@pytest.mark.asyncio
+async def test_user_agent_spoofing(capture_service, mock_context, mock_page, mock_options, mock_ua_generator):
+    mock_options.use_random_user_agent = True
+    mock_options.user_agent_device = 'desktop'
+    mock_options.user_agent_platform = 'windows'
+    mock_options.user_agent_browser = 'chrome'
+
+    with patch.object(capture_service.context_manager, 'get_context', return_value=mock_context):
+        mock_context.new_page.return_value = mock_page
+
+        await capture_service.capture_screenshot("output.png", mock_options)
+
+        # Verify that ua_generator was called with correct parameters
+        mock_ua_generator.generate.assert_called_once_with(
+            device='desktop',
+            platform='windows',
+            browser='chrome'
+        )
+
+        # Verify that the generated user agent was set on the page
+        mock_page.set_extra_http_headers.assert_called_once_with({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+        })
+
+@pytest.mark.asyncio
+async def test_user_agent_spoofing_disabled(capture_service, mock_context, mock_page, mock_options):
+    mock_options.use_random_user_agent = False
+
+    with patch.object(capture_service.context_manager, 'get_context', return_value=mock_context):
+        mock_context.new_page.return_value = mock_page
+
+        await capture_service.capture_screenshot("output.png", mock_options)
+
+        # Verify that set_extra_http_headers was not called
+        mock_page.set_extra_http_headers.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_user_agent_spoofing_with_custom_headers(capture_service, mock_context, mock_page, mock_options, mock_ua_generator):
+    mock_options.use_random_user_agent = True
+    mock_options.user_agent_device = 'desktop'
+    mock_options.user_agent_platform = 'windows'
+    mock_options.user_agent_browser = 'chrome'
+    mock_options.custom_headers = {'X-Custom-Header': 'CustomValue'}
+
+    with patch.object(capture_service.context_manager, 'get_context', return_value=mock_context):
+        mock_context.new_page.return_value = mock_page
+
+        await capture_service.capture_screenshot("output.png", mock_options)
+
+        # Verify that both the generated user agent and custom headers were set
+        mock_page.set_extra_http_headers.assert_called_once_with({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'X-Custom-Header': 'CustomValue'
+        })
