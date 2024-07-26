@@ -1,0 +1,332 @@
+openapi: 3.0.0
+info:
+  title: Pixashot API
+  description: |
+    Pixashot is a powerful web screenshot service that allows capturing high-quality screenshots with various customization options.
+  version: 1.0.0
+  contact:
+    name: Pixashot Support
+    url: https://github.com/gregpriday/pixashot/issues
+
+servers:
+  - url: https://api.pixashot.com/v1
+    description: Production server
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /capture:
+    post:
+      summary: Capture a screenshot
+      description: Capture a screenshot of a webpage or HTML content with various options
+      operationId: captureScreenshot
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaptureRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            text/html:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonResponse'
+        '204':
+          description: Empty response (when response_type is 'empty')
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    CaptureRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL of the site to take a screenshot of
+        html_content:
+          type: string
+          description: HTML content to render and capture
+        window_width:
+          type: integer
+          minimum: 1
+          default: 1920
+          description: The width of the browser viewport (pixels)
+        window_height:
+          type: integer
+          minimum: 1
+          default: 1080
+          description: The height of the browser viewport (pixels)
+        full_page:
+          type: boolean
+          default: false
+          description: Take a screenshot of the full page (scrolled to the bottom)
+        selector:
+          type: string
+          description: CSS-like selector of the element to take a screenshot of
+        format:
+          type: string
+          enum: [png, jpeg, webp, pdf, html]
+          default: png
+          description: Response format
+        response_type:
+          type: string
+          enum: [by_format, empty, json]
+          default: by_format
+          description: Response type
+        interactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/InteractionStep'
+          description: List of interaction steps to perform before capturing
+        wait_for_animation:
+          type: boolean
+          default: false
+          description: Wait for animations to complete before capturing
+        image_quality:
+          type: integer
+          minimum: 0
+          maximum: 100
+          default: 90
+          description: Image quality (0-100)
+        pixel_density:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          default: 1.0
+          description: Device scale factor (DPR)
+        omit_background:
+          type: boolean
+          default: false
+          description: Render a transparent background for the image
+        dark_mode:
+          type: boolean
+          default: false
+          description: Enable dark mode for the screenshot
+        wait_for_timeout:
+          type: integer
+          minimum: 0
+          default: 30000
+          description: Timeout in milliseconds to wait for page load
+        wait_for_selector:
+          type: string
+          description: Wait for a specific selector to appear in DOM
+        delay_capture:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Delay in milliseconds before taking the screenshot
+        wait_for_network:
+          type: string
+          enum: [idle, mostly_idle]
+          default: idle
+          description: Specify whether to wait for the network to be mostly idle or completely idle
+        custom_js:
+          type: string
+          description: Custom JavaScript to inject and execute before taking the screenshot
+        use_popup_blocker:
+          type: boolean
+          default: true
+          description: Use the popup blocker extension
+        use_cookie_blocker:
+          type: boolean
+          default: true
+          description: Use the cookie consent blocker extension
+        ignore_https_errors:
+          type: boolean
+          default: true
+          description: Ignore HTTPS errors during navigation
+        block_media:
+          type: boolean
+          default: false
+          description: Block images, video, and audio from loading
+        custom_headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Custom headers to be sent with the request
+        proxy_server:
+          type: string
+          description: Proxy server address
+        proxy_port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: Proxy server port
+        proxy_username:
+          type: string
+          description: Proxy server username
+        proxy_password:
+          type: string
+          description: Proxy server password
+        geolocation:
+          $ref: '#/components/schemas/Geolocation'
+        pdf_print_background:
+          type: boolean
+          default: true
+          description: Print background graphics in PDF
+        pdf_scale:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          default: 1.0
+          description: Scale of the webpage rendering
+        pdf_page_ranges:
+          type: string
+          description: Paper ranges to print, e.g., '1-5, 8, 11-13'
+        pdf_format:
+          type: string
+          enum: [A4, Letter, Legal]
+          default: A4
+          description: Paper format
+        pdf_width:
+          type: string
+          description: Paper width, accepts values labeled with units
+        pdf_height:
+          type: string
+          description: Paper height, accepts values labeled with units
+      oneOf:
+        - required: [url]
+        - required: [html_content]
+
+    InteractionStep:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [click, type, hover, scroll, wait_for]
+        selector:
+          type: string
+        text:
+          type: string
+        x:
+          type: integer
+        y:
+          type: integer
+        wait_for:
+          $ref: '#/components/schemas/WaitForOption'
+
+    WaitForOption:
+      type: object
+      required:
+        - type
+        - value
+      properties:
+        type:
+          type: string
+          enum: [network_idle, network_mostly_idle, selector, timeout]
+        value:
+          oneOf:
+            - type: string
+            - type: integer
+
+    Geolocation:
+      type: object
+      required:
+        - latitude
+        - longitude
+        - accuracy
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        accuracy:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+
+    JsonResponse:
+      type: object
+      required:
+        - file
+        - format
+      properties:
+        file:
+          type: string
+          format: byte
+          description: Base64 encoded file content
+        format:
+          type: string
+          enum: [png, jpeg, webp, pdf, html]
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          enum: [error]
+        message:
+          type: string
+        errorType:
+          type: string
+        errorDetails:
+          type: string
+        stackTrace:
+          type: string
