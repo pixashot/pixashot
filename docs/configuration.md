@@ -45,10 +45,22 @@ Pixashot provides a comprehensive set of configuration options to customize the 
 
 ## Proxy Configuration
 
-- `proxy_server` (str, optional): Proxy server address.
-- `proxy_port` (int, optional): Proxy server port.
-- `proxy_username` (str, optional): Username for proxy authentication.
-- `proxy_password` (str, optional): Password for proxy authentication.
+Proxy settings can be configured in two ways:
+
+1. **Per-request configuration:**
+   - `proxy_server` (str, optional): Proxy server address.
+   - `proxy_port` (int, optional): Proxy server port.
+   - `proxy_username` (str, optional): Username for proxy authentication.
+   - `proxy_password` (str, optional): Password for proxy authentication.
+
+2. **Environment variables:**
+   You can set default proxy settings using the following environment variables:
+   - `PROXY_SERVER`: Default proxy server address.
+   - `PROXY_PORT`: Default proxy server port.
+   - `PROXY_USERNAME`: Default username for proxy authentication.
+   - `PROXY_PASSWORD`: Default password for proxy authentication.
+
+   These environment variables will be used as defaults if the corresponding options are not provided in the request.
 
 ## Geolocation Options
 

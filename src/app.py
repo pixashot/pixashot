@@ -28,6 +28,12 @@ capture_service = CaptureService()
 RATE_LIMIT_ENABLED = os.environ.get('RATE_LIMIT_ENABLED', 'False').lower() == 'true'
 RATE_LIMIT_CAPTURE = os.environ.get('RATE_LIMIT_CAPTURE', '1 per second')
 
+# Read proxy settings from environment variables
+PROXY_SERVER = os.environ.get('PROXY_SERVER')
+PROXY_PORT = os.environ.get('PROXY_PORT')
+PROXY_USERNAME = os.environ.get('PROXY_USERNAME')
+PROXY_PASSWORD = os.environ.get('PROXY_PASSWORD')
+
 # Initialize rate limiter
 limiter = RateLimiter(app)
 
@@ -62,6 +68,17 @@ def apply_rate_limit(f):
 async def capture():
     try:
         options = CaptureRequest(**(await request.json))
+
+        # Apply proxy settings from environment variables if not provided in the request
+        if not options.proxy_server and PROXY_SERVER:
+            options.proxy_server = PROXY_SERVER
+        if not options.proxy_port and PROXY_PORT:
+            options.proxy_port = int(PROXY_PORT)
+        if not options.proxy_username and PROXY_USERNAME:
+            options.proxy_username = PROXY_USERNAME
+        if not options.proxy_password and PROXY_PASSWORD:
+            options.proxy_password = PROXY_PASSWORD
+
     except ValueError as e:
         app.logger.error(f"Invalid request parameters: {str(e)}")
         return {'status': 'error', 'message': str(e)}, 400
