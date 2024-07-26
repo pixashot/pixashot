@@ -48,11 +48,12 @@ That's it! Pixashot is now running in a Docker container, ready to capture scree
 
 ## 📚 Documentation
 
-- [API Reference](docs/api-reference.md)
-- [Configuration Options](docs/configuration.md)
-- [Advanced Features](docs/advanced.md)
-- [Deployment Guide](docs/deployment.md)
-- [Deploy on Google Cloud Run](docs/deploy-from-dockerhub.md)
+- [API Reference](docs/api-reference.md): Detailed guide on Pixashot's API endpoints and usage
+- [Configuration Options](docs/configuration.md): Comprehensive list of all available configuration parameters
+- [Advanced Features](docs/advanced.md): Explore powerful capabilities like custom JavaScript injection and proxy configuration
+- [Deployment Guide](docs/deployment.md): Step-by-step instructions for deploying Pixashot in various environments
+- [Deploy on Google Cloud Run](docs/deploy-from-dockerhub.md): Specific guide for quick deployment on Google Cloud Run
+- [Interactions](docs/interactions.md): Learn how to simulate user interactions before capturing screenshots
 
 ## 🌟 Features
 
