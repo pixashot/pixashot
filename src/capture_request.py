@@ -1,6 +1,8 @@
 from typing import Optional, Literal, Dict, Union, List
 from pydantic import BaseModel, HttpUrl, Field, PositiveInt, PositiveFloat, conint, confloat, model_validator
 
+from templates import get_template
+
 
 class Geolocation(BaseModel):
     latitude: confloat(ge=-90, le=90)
@@ -41,6 +43,9 @@ class CaptureRequest(BaseModel):
     # Basic options
     url: Optional[HttpUrl] = Field(None, description="URL of the site to take a screenshot of")
     html_content: Optional[str] = Field(None, description="HTML content to render and capture")
+
+    # Optional template
+    template: Optional[str] = Field(None, description="Name of the optional template to use")
 
     # Viewport and screenshot options
     window_width: PositiveInt = Field(1920, description="The width of the browser viewport (pixels)")
@@ -106,6 +111,18 @@ class CaptureRequest(BaseModel):
     @model_validator(mode='before')
     def validate_url_or_html_content(cls, values):
         return validate_url_or_html_content(values)
+
+    @model_validator(mode='before')
+    def apply_template(cls, values):
+        template_name = values.get('template')
+        if template_name:
+            template = get_template(template_name)
+            if template:
+                # Apply template values, but don't overwrite explicitly set values
+                for key, value in template.items():
+                    if key not in values or values[key] is None:
+                        values[key] = value
+        return values
 
     @model_validator(mode='after')
     def check_pdf_options(self) -> 'CaptureRequest':
