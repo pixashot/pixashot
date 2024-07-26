@@ -1,68 +1,99 @@
-import os
-import tempfile
-
 import pytest
+from quart import Quart
 from unittest.mock import patch, Mock
-from src.app import app
+from src.app import app, capture_service
 from src.exceptions import ScreenshotServiceException
 
 
 @pytest.fixture
-def client():
+def test_app():
     app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
+    return app
 
 
-def test_screenshot_endpoint_success(client):
+@pytest.mark.asyncio
+async def test_screenshot_endpoint_success(test_app):
+    client = test_app.test_client()
+
     mock_capture_service = Mock()
+    mock_capture_service.capture_screenshot.return_value = b'fake image data'
 
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
-        temp_file.write(b'fake image data')
-        temp_file_path = temp_file.name
+    with patch('src.app.capture_service', mock_capture_service):
+        response = await client.post('/capture', json={
+            "url": "https://example.com",
+            "format": "png"
+        })
 
-    # Mock the capture_screenshot method to use the temp file
-    def mock_capture_screenshot(output_path, options):
-        with open(output_path, 'wb') as f:
-            f.write(b'fake image data')
-
-    mock_capture_service.capture_screenshot.side_effect = mock_capture_screenshot
-
-    try:
-        with patch('src.app.capture_service', mock_capture_service):
-            response = client.post('/capture', json={
-                "url": "https://example.com",
-                "format": "png"
-            })
-
-        assert response.status_code == 200
-        assert response.content_type == 'image/png'
-        assert response.data == b'fake image data'
-    finally:
-        # Clean up the temporary file
-        os.unlink(temp_file_path)
+    assert response.status_code == 200
+    assert response.headers['Content-Type'] == 'image/png'
+    assert await response.get_data() == b'fake image data'
 
 
-def test_screenshot_endpoint_invalid_params(client):
-    response = client.post('/capture', json={
+@pytest.mark.asyncio
+async def test_screenshot_endpoint_invalid_params(test_app):
+    client = test_app.test_client()
+
+    response = await client.post('/capture', json={
         "format": "png"
     })
 
     assert response.status_code == 400
-    assert b"Either url or html_content must be provided" in response.data
+    response_data = await response.get_json()
+    assert "Either url or html_content must be provided" in response_data['message']
 
 
-def test_screenshot_endpoint_service_exception(client):
+@pytest.mark.asyncio
+async def test_screenshot_endpoint_service_exception(test_app):
+    client = test_app.test_client()
+
     mock_capture_service = Mock()
-    mock_capture_service.capture_screenshot.side_effect = ScreenshotServiceException("An unexpected error occurred while capturing.")
+    mock_capture_service.capture_screenshot.side_effect = ScreenshotServiceException(
+        "An unexpected error occurred while capturing.")
 
     with patch('src.app.capture_service', mock_capture_service):
-        response = client.post('/capture', json={
+        response = await client.post('/capture', json={
             "url": "https://example.com",
             "format": "png"
         })
 
     assert response.status_code == 500
-    assert response.json['status'] == 'error'
-    assert 'An unexpected error occurred while capturing.' in response.json['message']
+    response_data = await response.get_json()
+    assert response_data['status'] == 'error'
+    assert 'An unexpected error occurred while capturing.' in response_data['message']
+
+
+@pytest.mark.asyncio
+async def test_auth_token_middleware(test_app):
+    client = test_app.test_client()
+
+    with patch.dict('os.environ', {'AUTH_TOKEN': 'test_token'}):
+        # Test with correct token
+        response = await client.post('/capture',
+                                     json={"url": "https://example.com", "format": "png"},
+                                     headers={"Authorization": "Bearer test_token"})
+        assert response.status_code != 401
+
+        # Test with incorrect token
+        response = await client.post('/capture',
+                                     json={"url": "https://example.com", "format": "png"},
+                                     headers={"Authorization": "Bearer wrong_token"})
+        assert response.status_code == 403
+
+        # Test without token
+        response = await client.post('/capture',
+                                     json={"url": "https://example.com", "format": "png"})
+        assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_rate_limiting(test_app):
+    client = test_app.test_client()
+
+    with patch.dict('os.environ', {'RATE_LIMIT_ENABLED': 'true', 'RATE_LIMIT_CAPTURE': '1 per minute'}):
+        # First request should succeed
+        response = await client.post('/capture', json={"url": "https://example.com", "format": "png"})
+        assert response.status_code != 429
+
+        # Second request within the minute should fail
+        response = await client.post('/capture', json={"url": "https://example.com", "format": "png"})
+        assert response.status_code == 429

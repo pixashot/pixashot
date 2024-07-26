@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from src.capture_request import CaptureRequest
+from src.capture_request import CaptureRequest, InteractionStep, WaitForOption
 
 
 def test_capture_request_valid():
@@ -27,6 +27,7 @@ def test_capture_request_default_values():
     assert request.full_page == False
     assert request.image_quality == 90
     assert request.pixel_density == 1.0
+    assert request.wait_for_network == "idle"
 
 
 def test_capture_request_invalid_url():
@@ -49,7 +50,7 @@ def test_capture_request_html_content():
 def test_capture_request_geolocation():
     geo = {"latitude": 37.7749, "longitude": -122.4194, "accuracy": 100}
     request = CaptureRequest(url="https://example.com", geolocation=geo)
-    assert request.geolocation == geo
+    assert request.geolocation.dict() == geo
 
 
 def test_capture_request_pdf_options():
@@ -138,3 +139,44 @@ def test_invalid_custom_js():
 def test_invalid_wait_for_selector():
     with pytest.raises(ValidationError):
         CaptureRequest(url="https://example.com", wait_for_selector=123)  # wait_for_selector should be a string
+
+
+def test_valid_interactions():
+    interactions = [
+        InteractionStep(action="click", selector="#button"),
+        InteractionStep(action="type", selector="#input", text="Hello"),
+        InteractionStep(action="wait_for", wait_for=WaitForOption(type="network_idle", value=5000))
+    ]
+    request = CaptureRequest(url="https://example.com", interactions=interactions)
+    assert len(request.interactions) == 3
+    assert request.interactions[0].action == "click"
+    assert request.interactions[1].action == "type"
+    assert request.interactions[2].action == "wait_for"
+
+
+def test_invalid_interactions():
+    with pytest.raises(ValidationError):
+        CaptureRequest(url="https://example.com", interactions=[
+            {"action": "invalid_action", "selector": "#button"}
+        ])
+
+
+def test_valid_wait_for_network():
+    request = CaptureRequest(url="https://example.com", wait_for_network="mostly_idle")
+    assert request.wait_for_network == "mostly_idle"
+
+
+def test_invalid_wait_for_network():
+    with pytest.raises(ValidationError):
+        CaptureRequest(url="https://example.com", wait_for_network="invalid")
+
+
+def test_valid_custom_headers():
+    headers = {"User-Agent": "Custom User Agent"}
+    request = CaptureRequest(url="https://example.com", custom_headers=headers)
+    assert request.custom_headers == headers
+
+
+def test_invalid_custom_headers():
+    with pytest.raises(ValidationError):
+        CaptureRequest(url="https://example.com", custom_headers={"Invalid:Header": "Value"})

@@ -2,16 +2,14 @@ import pytest
 from unittest.mock import Mock, patch, call
 from src.capture_service import CaptureService
 from src.exceptions import ScreenshotServiceException
-from src.capture_request import Geolocation
+from src.capture_request import CaptureRequest, Geolocation
 
 
 @pytest.fixture
-def capture_service():
-    return CaptureService()
-
-@pytest.fixture
-def mock_playwright():
-    return Mock()
+async def capture_service():
+    service = CaptureService()
+    await service.initialize(Mock())
+    return service
 
 @pytest.fixture
 def mock_context():
@@ -23,7 +21,7 @@ def mock_page():
 
 @pytest.fixture
 def mock_options():
-    options = Mock(
+    return CaptureRequest(
         url="https://example.com",
         format="png",
         full_page=False,
@@ -37,110 +35,76 @@ def mock_options():
         delay_capture=0,
         geolocation=Geolocation(latitude=37.7749, longitude=-122.4194, accuracy=100)
     )
-    return options
 
-@patch('src.capture_service.sync_playwright')
-def test_capture_screenshot(mock_sync_playwright, capture_service, mock_playwright, mock_context, mock_page, mock_options):
-    mock_sync_playwright.return_value.__enter__.return_value = mock_playwright
-    mock_playwright.chromium.launch_persistent_context.return_value = mock_context
-    mock_context.new_page.return_value = mock_page
+@pytest.mark.asyncio
+async def test_capture_screenshot(capture_service, mock_context, mock_page, mock_options):
+    with patch.object(capture_service.context_manager, 'get_context', return_value=mock_context):
+        mock_context.new_page.return_value = mock_page
 
-    mock_set_geolocation = Mock()
+        await capture_service.capture_screenshot("output.png", mock_options)
 
-    def mock_prepare_page(page, options):
-        if options.geolocation:
-            mock_set_geolocation(page, options.geolocation)
+        mock_page.goto.assert_called_with(
+            "https://example.com",
+            wait_until='domcontentloaded',
+            timeout=5000.0
+        )
 
-    with patch.object(capture_service.browser_controller, 'prepare_page', side_effect=mock_prepare_page):
-        with patch.object(capture_service.browser_controller.geolocation_controller, 'set_geolocation', mock_set_geolocation):
-            capture_service.capture_screenshot("output.png", mock_options)
+        mock_page.screenshot.assert_called_once()
 
-    mock_page.goto.assert_called_with(
-        "https://example.com",
-        wait_until='domcontentloaded',
-        timeout=5000.0
-    )
+@pytest.mark.asyncio
+async def test_capture_full_page_screenshot(capture_service, mock_context, mock_page, mock_options):
+    with patch.object(capture_service.context_manager, 'get_context', return_value=mock_context):
+        mock_context.new_page.return_value = mock_page
+        mock_options.full_page = True
+        mock_options.format = "png"
+        mock_options.image_quality = None  # PNG doesn't use quality
 
-    mock_set_geolocation.assert_called_once_with(mock_page, mock_options.geolocation)
+        # Mock the evaluate method to return a valid height
+        mock_page.evaluate.return_value = 10000
 
-    mock_page.screenshot.assert_called_once()
+        await capture_service.capture_screenshot("output.png", mock_options)
 
+        mock_page.screenshot.assert_called_with(
+            path="output.png",
+            full_page=True,
+            quality=None,
+            omit_background=False,
+            type="png"
+        )
 
-@patch('src.capture_service.sync_playwright')
-@patch('PIL.Image.open')
-@patch('src.capture_service.CaptureService._crop_screenshot_if_necessary')
-def test_capture_full_page_screenshot(mock_crop, mock_image_open, mock_sync_playwright, capture_service, mock_playwright, mock_context, mock_page, mock_options):
-    mock_sync_playwright.return_value.__enter__.return_value = mock_playwright
-    mock_playwright.chromium.launch_persistent_context.return_value = mock_context
-    mock_context.new_page.return_value = mock_page
-    mock_options.full_page = True
-    mock_options.window_width = 1280
-    mock_options.window_height = 720
-    mock_options.pixel_density = 2.0
-    mock_options.format = "png"
-    mock_options.image_quality = None  # PNG doesn't use quality
+@pytest.mark.asyncio
+async def test_capture_element_screenshot(capture_service, mock_context, mock_page, mock_options):
+    with patch.object(capture_service.context_manager, 'get_context', return_value=mock_context):
+        mock_context.new_page.return_value = mock_page
+        mock_options.selector = "#element"
+        mock_element = Mock()
+        mock_page.query_selector.return_value = mock_element
 
-    # Mock the evaluate method to return a valid height
-    mock_page.evaluate.return_value = 10000
+        await capture_service.capture_screenshot("output.png", mock_options)
 
-    # Create a mock image
-    mock_image = Mock()
-    mock_image.width = 2560  # This is greater than window_width * pixel_density
-    mock_image.height = 10000
-    mock_image_open.return_value.__enter__.return_value = mock_image
+        mock_page.query_selector.assert_called_with("#element")
+        mock_element.screenshot.assert_called()
 
-    with patch.object(capture_service.browser_controller.screenshot_controller, 'MAX_VIEWPORT_HEIGHT', 20000):
-        capture_service.capture_screenshot("output.png", mock_options)
+@pytest.mark.asyncio
+async def test_capture_pdf(capture_service, mock_context, mock_page, mock_options):
+    with patch.object(capture_service.context_manager, 'get_context', return_value=mock_context):
+        mock_context.new_page.return_value = mock_page
+        mock_options.format = "pdf"
 
-    mock_page.screenshot.assert_called_with(
-        path="output.png",
-        full_page=True,
-        quality=None,
-        omit_background=False,
-        type="png"
-    )
+        await capture_service.capture_screenshot("output.pdf", mock_options)
 
-    # Assert that _crop_screenshot_if_necessary was called
-    mock_crop.assert_called_once_with("output.png", mock_options.window_width, mock_options.pixel_density)
+        mock_page.pdf.assert_called()
 
-    # Test with JPEG format
-    mock_options.format = "jpeg"
-    mock_options.image_quality = 80
+@pytest.mark.asyncio
+async def test_perform_interactions(capture_service, mock_context, mock_page, mock_options):
+    with patch.object(capture_service.context_manager, 'get_context', return_value=mock_context):
+        mock_context.new_page.return_value = mock_page
+        mock_options.interactions = [
+            {"action": "click", "selector": "#button"},
+            {"action": "type", "selector": "#input", "text": "Hello"}
+        ]
 
-    capture_service.capture_screenshot("output.jpg", mock_options)
+        await capture_service.capture_screenshot("output.png", mock_options)
 
-    mock_page.screenshot.assert_called_with(
-        path="output.jpg",
-        full_page=True,
-        quality=80,
-        omit_background=False,
-        type="jpeg"
-    )
-
-
-@patch('src.capture_service.sync_playwright')
-def test_capture_element_screenshot(mock_sync_playwright, capture_service, mock_playwright, mock_context, mock_page,
-                                    mock_options):
-    mock_sync_playwright.return_value.__enter__.return_value = mock_playwright
-    mock_playwright.chromium.launch_persistent_context.return_value = mock_context
-    mock_context.new_page.return_value = mock_page
-    mock_options.selector = "#element"
-    mock_element = Mock()
-    mock_page.query_selector.return_value = mock_element
-
-    capture_service.capture_screenshot("output.png", mock_options)
-
-    mock_page.query_selector.assert_called_with("#element")
-    mock_element.screenshot.assert_called()
-
-
-@patch('src.capture_service.sync_playwright')
-def test_capture_pdf(mock_sync_playwright, capture_service, mock_playwright, mock_context, mock_page, mock_options):
-    mock_sync_playwright.return_value.__enter__.return_value = mock_playwright
-    mock_playwright.chromium.launch_persistent_context.return_value = mock_context
-    mock_context.new_page.return_value = mock_page
-    mock_options.format = "pdf"
-
-    capture_service.capture_screenshot("output.pdf", mock_options)
-
-    mock_page.pdf.assert_called()
+        mock_page.click.assert_called_with("#button")
+        mock_page.fill.assert_called_with("#input", "Hello")
