@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 class ContentController(BaseBrowserController):
     def __init__(self):
         super().__init__()
-        self.js_file_path = os.path.join(os.path.dirname(__file__), '../js/page-utils.js')
         self.dynamic_content_detector_path = os.path.join(os.path.dirname(__file__),
                                                           '../js/dynamic-content-detector.js')
         self.dark_mode_js_path = os.path.join(os.path.dirname(__file__), '../js/dark-mode.js')

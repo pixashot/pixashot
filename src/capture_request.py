@@ -1,4 +1,4 @@
-from typing import Optional, Literal, Dict
+from typing import Optional, Literal, Dict, Union, List
 from pydantic import BaseModel, HttpUrl, Field, PositiveInt, PositiveFloat, conint, confloat, model_validator
 
 
@@ -13,6 +13,20 @@ class Geolocation(BaseModel):
                     self.longitude == other['longitude'] and
                     self.accuracy == other['accuracy'])
         return super().__eq__(other)
+
+
+class WaitForOption(BaseModel):
+    type: Literal["network_idle", "network_mostly_idle", "selector", "timeout"]
+    value: Union[str, int] = Field(..., description="Selector string for 'selector', milliseconds for others")
+
+
+class InteractionStep(BaseModel):
+    action: Literal["click", "type", "hover", "scroll", "wait_for"]
+    selector: Optional[str] = None
+    text: Optional[str] = None
+    x: Optional[int] = None
+    y: Optional[int] = None
+    wait_for: Optional[WaitForOption] = Field(None, description="Specifies what to wait for")
 
 
 def validate_url_or_html_content(v):
@@ -39,6 +53,11 @@ class CaptureRequest(BaseModel):
                                                                             description="Response format: png, jpeg, webp, pdf, html")
     response_type: Optional[Literal["by_format", "empty", "json"]] = Field("by_format",
                                                                            description="Response type: by_format, empty, json")
+
+    # Interactions
+    interactions: Optional[List[InteractionStep]] = Field(None,
+                                                          description="List of interaction steps to perform before capturing")
+    wait_for_animation: Optional[bool] = Field(False, description="Wait for animations to complete before capturing")
 
     # Image options
     image_quality: Optional[conint(ge=0, le=100)] = Field(90, description="Image quality (0-100)")
@@ -91,7 +110,8 @@ class CaptureRequest(BaseModel):
     @model_validator(mode='after')
     def check_pdf_options(self) -> 'CaptureRequest':
         if self.format != 'pdf':
-            pdf_fields = ['pdf_print_background', 'pdf_scale', 'pdf_page_ranges', 'pdf_format', 'pdf_width', 'pdf_height']
+            pdf_fields = ['pdf_print_background', 'pdf_scale', 'pdf_page_ranges', 'pdf_format', 'pdf_width',
+                          'pdf_height']
             for field in pdf_fields:
                 if getattr(self, field) is not None:
                     setattr(self, field, None)
@@ -104,6 +124,21 @@ class CaptureRequest(BaseModel):
             for header_name in self.custom_headers.keys():
                 if not isinstance(header_name, str) or ':' in header_name:
                     raise ValueError(f"Invalid header name: {header_name}")
+        return self
+
+    @model_validator(mode='after')
+    def validate_interaction_steps(self) -> 'CaptureRequest':
+        if self.interactions:
+            for step in self.interactions:
+                if step.action == "wait_for":
+                    if not step.wait_for:
+                        raise ValueError("wait_for action requires a wait_for option")
+                    if step.wait_for.type in ["network_idle", "network_mostly_idle", "timeout"]:
+                        if not isinstance(step.wait_for.value, int):
+                            raise ValueError(f"{step.wait_for.type} requires an integer value for milliseconds")
+                    elif step.wait_for.type == "selector":
+                        if not isinstance(step.wait_for.value, str):
+                            raise ValueError("selector wait_for type requires a string value")
         return self
 
     model_config = {

@@ -27,6 +27,7 @@ class CaptureService:
                 await self._configure_page(page, options)
                 await self._load_content(page, options)
                 await self._prepare_page(page, options)
+                await self._perform_interactions(page, options)
                 await self._perform_capture(page, output_path, options)
 
                 return
@@ -73,6 +74,10 @@ class CaptureService:
             await self._capture_full_page_screenshot(page, output_path, options)
         else:
             await self._capture_viewport_screenshot(page, output_path, options)
+
+    async def _perform_interactions(self, page: Page, options):
+        if options.interactions:
+            await self.browser_controller.perform_interactions(page, options.interactions)
 
     async def _capture_pdf(self, page: Page, output_path, options):
         pdf_options = {k: v for k, v in options.dict().items() if k.startswith('pdf_') and v is not None}
