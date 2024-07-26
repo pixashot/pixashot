@@ -17,7 +17,7 @@ class CaptureService:
         await self.context_manager.initialize(playwright)
 
     async def capture_screenshot(self, output_path, options):
-        max_retries = 3
+        max_retries = 2
         retry_delay = 1
 
         for attempt in range(max_retries + 1):
