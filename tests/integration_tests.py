@@ -33,6 +33,7 @@ async def test_screenshot_endpoint(test_client):
 
     # Check if the response is a PNG image
     assert response.headers['Content-Type'] == 'image/png'
+    assert response.headers['Content-Disposition'].startswith('attachment; filename=screenshot.png')
 
     # Check if the response has content
     assert len(await response.get_data()) > 0

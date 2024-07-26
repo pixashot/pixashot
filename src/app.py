@@ -6,7 +6,9 @@ import tempfile
 import time
 import traceback
 from logging.config import dictConfig
+from contextlib import asynccontextmanager
 from urllib.parse import urlparse
+from io import BytesIO
 
 from quart import Quart, abort, request, send_file, make_response
 from quart_rate_limiter import RateLimiter, rate_limit
@@ -83,21 +85,25 @@ async def capture():
 
             await capture_service.capture_screenshot(output_path, options)
 
-            @app.after_this_request
-            async def remove_file(response):
-                if os.path.exists(output_path):
-                    os.remove(output_path)
-                return response
-
             if options.response_type == 'empty':
+                os.remove(output_path)
                 return '', 204
             elif options.response_type == 'json':
                 with open(output_path, 'rb') as f:
                     file_data = f.read()
+                os.remove(output_path)
                 return {'file': base64.b64encode(file_data).decode('utf-8')}, 200
             else:  # by_format
                 mime_type = 'application/pdf' if options.format == 'pdf' else f'image/{options.format}'
-                return await send_file(output_path, mimetype=mime_type)
+                with open(output_path, 'rb') as f:
+                    file_data = f.read()
+                os.remove(output_path)
+                return await send_file(
+                    BytesIO(file_data),
+                    mimetype=mime_type,
+                    as_attachment=True,
+                    attachment_filename=f"screenshot.{options.format}"
+                )
 
     except ScreenshotServiceException as e:
         app.logger.error(f"Screenshot service error: {str(e)}")

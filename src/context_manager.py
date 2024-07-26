@@ -11,6 +11,9 @@ class ContextManager:
         self.contexts: Dict[Tuple, Tuple[BrowserContext, float]] = {}
         self.extension_dir = os.path.join(os.path.dirname(__file__), 'extensions')
 
+    def initialize(self, playwright):
+        self.playwright = playwright
+
     async def get_context(self, options) -> BrowserContext:
         if self.playwright is None:
             self.playwright = await async_playwright().start()
