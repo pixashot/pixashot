@@ -12,8 +12,9 @@ class CaptureService:
         self.context_manager = ContextManager(playwright)
         self.browser_controller = MainBrowserController()
 
-    def initialize(self, playwright):
-        self.context_manager.initialize(playwright)
+    async def initialize(self, playwright):
+        self.context_manager = ContextManager(playwright)
+        await self.context_manager.initialize(playwright)
 
     async def capture_screenshot(self, output_path, options):
         max_retries = 3

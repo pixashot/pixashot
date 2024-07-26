@@ -35,7 +35,9 @@ limiter = RateLimiter(app)
 
 @app.before_serving
 async def startup():
+    global capture_service
     playwright = await async_playwright().start()
+    capture_service = CaptureService()
     await capture_service.initialize(playwright)
 
 
@@ -57,8 +59,14 @@ async def auth_token_middleware():
             abort(403, description="Invalid authorization token.")
 
 
+def apply_rate_limit(f):
+    if RATE_LIMIT_ENABLED:
+        return rate_limit(RATE_LIMIT_CAPTURE)(f)
+    return f
+
+
 @app.route('/capture', methods=['POST'])
-@rate_limit(RATE_LIMIT_CAPTURE) if RATE_LIMIT_ENABLED else lambda x: x
+@apply_rate_limit
 async def capture():
     try:
         options = CaptureRequest(**(await request.json))

@@ -12,7 +12,7 @@ WORKDIR /app
 # Install system dependencies including video codecs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libavcodec-extra \
-    libavformat-extra \
+    libavformat-dev \
     ffmpeg \
     gstreamer1.0-libav \
     xvfb \
@@ -36,4 +36,4 @@ RUN chmod +x ./entry.sh
 EXPOSE ${PORT}
 
 # Specify the command to run on container start with default values
-ENTRYPOINT ["./entry.sh", "--workers", "4", "--keep-alive", "300", "--port", "${PORT}"]
+ENTRYPOINT ["./entry.sh", "--workers", "1", "--keep-alive", "300", "--port", "${PORT}"]
