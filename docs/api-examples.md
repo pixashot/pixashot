@@ -92,4 +92,40 @@ curl -X POST http://your-service-url/capture \
          }'
 ```
 
+## Capture with Interactions
+
+```bash
+curl -X POST http://your-service-url/capture \
+     -H "Content-Type: application/json" \
+     -d '{
+           "url": "https://example.com/form",
+           "format": "png",
+           "interactions": [
+             {
+               "action": "type",
+               "selector": "#username",
+               "text": "johndoe"
+             },
+             {
+               "action": "type",
+               "selector": "#password",
+               "text": "secretpassword"
+             },
+             {
+               "action": "click",
+               "selector": "#login-button"
+             },
+             {
+               "action": "wait_for",
+               "wait_for": {
+                 "type": "network_idle",
+                 "value": 5000
+               }
+             }
+           ]
+         }'
+```
+
+This example demonstrates how to fill out a login form and wait for the page to load before capturing the screenshot. For more details on interaction options, see the [Interactions documentation](interactions.md).
+
 Remember to replace `http://your-service-url` with the actual URL of your deployed Pixashot service.
