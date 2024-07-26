@@ -51,7 +51,7 @@ class CaptureRequest(BaseModel):
     wait_for_selector: Optional[str] = Field(None, description="Wait for a specific selector to appear in DOM")
     delay_capture: Optional[PositiveInt] = Field(0, description="Delay in milliseconds before taking the screenshot")
     wait_for_network: Literal["idle", "mostly_idle"] = Field(
-        "network_mostly_idle",
+        "idle",
         description="Specify whether to wait for the network to be mostly idle or completely idle"
     )
 

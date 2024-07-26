@@ -19,7 +19,6 @@ class MainBrowserController:
     def prepare_page(self, page: Page, options):
         try:
             self.content_controller.prevent_horizontal_overflow(page)
-            self.content_controller.inject_scripts(page)
             if options.dark_mode:
                 self.content_controller.apply_dark_mode(page)
             if options.geolocation:
@@ -36,7 +35,7 @@ class MainBrowserController:
             if options.wait_for_selector:
                 self.navigation_controller.wait_for_selector(page, options.wait_for_selector, options.wait_for_timeout)
 
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(100)
 
             logger.info('Page prepared successfully')
         except Exception as e:

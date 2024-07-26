@@ -11,7 +11,7 @@ class ScreenshotController(BaseBrowserController):
     NETWORK_IDLE_TIMEOUT_MS = 1000
     SCROLL_PAUSE_MS = 500
 
-    def prepare_for_full_page_screenshot(self, page: Page, window_width: int, window_height: int):
+    def prepare_for_full_page_screenshot(self, page: Page, window_width: int):
         try:
             page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
             page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)

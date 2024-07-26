@@ -15,17 +15,6 @@ class ContentController(BaseBrowserController):
                                                           '../js/dynamic-content-detector.js')
         self.dark_mode_js_path = os.path.join(os.path.dirname(__file__), '../js/dark-mode.js')
 
-    def inject_scripts(self, page: Page):
-        try:
-            with open(self.js_file_path, 'r') as file:
-                js_content = file.read()
-                page.evaluate(js_content)
-            page.evaluate('pageUtils.disableSmoothScrolling()')
-            page.evaluate('pageUtils.waitForAllImages()')
-        except Exception as e:
-            logger.error(f"Error injecting scripts: {str(e)}")
-            raise JavaScriptExecutionException(f"Failed to inject scripts: {str(e)}")
-
     def wait_for_dynamic_content(self, page: Page, check_interval: int = 1000, max_unchanged_checks: int = 5):
         try:
             with open(self.dynamic_content_detector_path, 'r') as file:
