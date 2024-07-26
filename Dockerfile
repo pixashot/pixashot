@@ -1,5 +1,5 @@
 # Use the official Playwright Python base image
-FROM mcr.microsoft.com/playwright/python:v1.45.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.35.0-focal
 
 # Define environment variables
 ENV PYTHONUNBUFFERED=1
@@ -36,4 +36,4 @@ RUN chmod +x ./entry.sh
 EXPOSE ${PORT}
 
 # Specify the command to run on container start with default values
-ENTRYPOINT ["./entry.sh", "--workers", "4", "--threads", "1", "--timeout", "300", "--port", "${PORT}"]
+ENTRYPOINT ["./entry.sh", "--workers", "4", "--keep-alive", "300", "--port", "${PORT}"]

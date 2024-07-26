@@ -2,8 +2,7 @@
 
 # Default values
 WORKERS=4
-THREADS=1
-TIMEOUT=300
+KEEP_ALIVE=300
 PORT="${PORT:-8080}"  # Use the PORT env var if set, otherwise default to 8080
 
 # Parse command line arguments
@@ -15,13 +14,8 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-    -t|--threads)
-      THREADS="$2"
-      shift
-      shift
-      ;;
-    --timeout)
-      TIMEOUT="$2"
+    --keep-alive)
+      KEEP_ALIVE="$2"
       shift
       shift
       ;;
@@ -49,14 +43,13 @@ Xvfb :99 -ac -screen 0 3840x2160x24 -dpi 192 &
 # Wait for Xvfb to be ready
 sleep 1
 
-echo "Starting server on port $PORT with $WORKERS workers and $THREADS threads"
+echo "Starting server on port $PORT with $WORKERS workers"
 
 # Set the DISPLAY environment variable
 export DISPLAY=:99
 
-# Run the Flask application
-exec gunicorn --bind 0.0.0.0:$PORT \
-              --workers $WORKERS \
-              --threads $THREADS \
-              --timeout $TIMEOUT \
-              app:app
+# Run the Quart application with Hypercorn
+exec hypercorn --bind 0.0.0.0:$PORT \
+               --workers $WORKERS \
+               --keep-alive $KEEP_ALIVE \
+               app:app

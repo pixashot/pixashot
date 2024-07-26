@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, Optional
-from playwright.sync_api import Page
+from playwright.async_api import Page
 from exceptions import BrowserException
 from controllers.base_controller import BaseBrowserController
 
@@ -8,22 +8,22 @@ logger = logging.getLogger(__name__)
 
 
 class GeolocationController(BaseBrowserController):
-    def set_geolocation(self, page: Page, location: Optional[Dict[str, float]]):
+    async def set_geolocation(self, page: Page, location: Optional[Dict[str, float]]):
         if location is None:
             logger.info("No geolocation set, skipping geolocation configuration")
             return
 
         try:
             context = page.context
-            context.grant_permissions(['geolocation'])
-            context.set_geolocation(location)
+            await context.grant_permissions(['geolocation'])
+            await context.set_geolocation(location)
 
             # Handle both dictionary and mock object
             latitude = location['latitude'] if isinstance(location, dict) else location.latitude
             longitude = location['longitude'] if isinstance(location, dict) else location.longitude
             accuracy = location['accuracy'] if isinstance(location, dict) else location.accuracy
 
-            page.add_init_script(f"""
+            await page.add_init_script(f"""
                 const mockGeolocation = {{
                     getCurrentPosition: (success) => {{
                         success({{

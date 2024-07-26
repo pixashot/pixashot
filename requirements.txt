@@ -1,6 +1,6 @@
-Flask==3.0.3
-Flask-Limiter==3.8.0
-pillow==10.4.0
-playwright==1.45.1
-pydantic==2.8.2
-gunicorn==22.0.0
+quart
+quart-rate-limiter
+hypercorn
+playwright
+pydantic
+Pillow

@@ -1,174 +1,104 @@
-import time
+import asyncio
 import logging
-from playwright.sync_api import sync_playwright
-from context_creator import ContextCreator
+from playwright.async_api import Page
+from context_manager import ContextManager
 from controllers.main_controller import MainBrowserController
-from exceptions import ScreenshotServiceException, BrowserException, NetworkException, ElementNotFoundException, \
-    JavaScriptExecutionException, TimeoutException
-from PIL import Image
-import io
+from exceptions import ScreenshotServiceException
 
 logger = logging.getLogger(__name__)
 
-
 class CaptureService:
-    def __init__(self):
-        self.context_creator = ContextCreator()
+    def __init__(self, playwright=None):
+        self.context_manager = ContextManager(playwright)
         self.browser_controller = MainBrowserController()
 
-    def capture_screenshot(self, output_path, options):
+    async def capture_screenshot(self, output_path, options):
         max_retries = 3
-        retry_delay = 1  # seconds
+        retry_delay = 1
 
         for attempt in range(max_retries + 1):
             try:
-                with sync_playwright() as p:
-                    context = self.context_creator.create_context(p, options)
-                    page = context.new_page()
+                context = await self.context_manager.get_context(options)
+                page = await context.new_page()
 
-                    start_time = time.time()
-                    if options.url:
-                        logger.info(f"Loading {options.url}...")
-                        self.browser_controller.goto_with_timeout(page, options.url)
-                    else:
-                        logger.info("Loading provided HTML content...")
-                        page.set_content(options.html_content)
-                    logger.info(f'Initial page load complete! Time taken: {time.time() - start_time:.2f}s')
+                await self._configure_page(page, options)
+                await self._load_content(page, options)
+                await self._prepare_page(page, options)
+                await self._perform_capture(page, output_path, options)
 
-                    self._prepare_page(page, options)
-
-                    if options.delay_capture > 0:
-                        logger.info(f"Delaying capture for {options.delay_capture}ms...")
-                        page.wait_for_timeout(options.delay_capture)
-
-                    if options.format == 'pdf':
-                        logger.info('Capturing PDF...')
-                        self.capture_pdf(page, output_path, options)
-                    elif options.full_page:
-                        logger.info('Capturing full page screenshot...')
-                        self.capture_full_page_screenshot(page, output_path, options)
-                    else:
-                        logger.info('Capturing viewport screenshot...')
-                        self.capture_viewport_screenshot(page, output_path, options)
-
-                    logger.info(f'Capture complete! Total time: {time.time() - start_time:.2f}s')
-                    return
-            except (BrowserException, NetworkException, ElementNotFoundException, JavaScriptExecutionException,
-                    TimeoutException) as e:
+                return
+            except Exception as e:
                 logger.error(f'Error during capture (attempt {attempt + 1}/{max_retries + 1}): {str(e)}')
                 if attempt < max_retries:
-                    time.sleep(retry_delay)
+                    await asyncio.sleep(retry_delay)
                     continue
                 raise ScreenshotServiceException(f"Failed to capture after {max_retries} attempts: {str(e)}")
-            except Exception as e:
-                logger.exception("Unexpected error during capture")
-                if attempt < max_retries:
-                    time.sleep(retry_delay)
-                    continue
-                raise ScreenshotServiceException(
-                    f"Failed to capture after {max_retries} attempts due to unexpected error: {str(e)}")
 
-    def _prepare_page(self, page, options):
-        start_time = time.time()
+    async def _configure_page(self, page: Page, options):
+        await page.set_viewport_size({"width": options.window_width, "height": options.window_height})
 
-        try:
-            self.browser_controller.prepare_page(page, options)
+        if options.proxy_server and options.proxy_port:
+            await page.route("**/*", lambda route: route.continue_({
+                "proxy": {
+                    "server": f"{options.proxy_server}:{options.proxy_port}",
+                    "username": options.proxy_username,
+                    "password": options.proxy_password
+                }
+            }))
 
-            # Move wait_for_timeout here, after page preparation
-            if options.wait_for_timeout > 0:
-                logger.info(f"Waiting for {options.wait_for_timeout}ms as specified...")
-                page.wait_for_timeout(options.wait_for_timeout)
+        if options.custom_headers:
+            await page.set_extra_http_headers(options.custom_headers)
 
-            logger.info(f'Page prepared! Time taken: {time.time() - start_time:.2f}s')
-        except (NetworkException, ElementNotFoundException, JavaScriptExecutionException, TimeoutException) as e:
-            logger.error(f"Error preparing page: {str(e)}")
-            raise
+        if options.block_media:
+            await page.route("**/*.{png,jpg,jpeg,gif,svg,ico,mp4,webm,ogg,mp3,wav}", lambda route: route.abort())
 
-    def capture_full_page_screenshot(self, page, output_path, options):
-        try:
-            self.browser_controller.prepare_for_full_page_screenshot(page, options.window_width)
-            self._take_screenshot(page, output_path, options, full_page=True)
-            self._crop_screenshot_if_necessary(output_path, options.window_width, options.pixel_density)
-        except Exception as e:
-            logger.error(f"Error capturing full page screenshot: {str(e)}")
-            raise ScreenshotServiceException(f"Failed to capture full page screenshot: {str(e)}")
+    async def _load_content(self, page: Page, options):
+        if options.url:
+            logger.info(f"Loading {options.url}...")
+            await self.browser_controller.goto_with_timeout(page, options.url, options.wait_for_timeout / 1000)
+        elif options.html_content:
+            logger.info("Loading provided HTML content...")
+            await page.set_content(options.html_content, wait_until='domcontentloaded')
 
-    def capture_viewport_screenshot(self, page, output_path, options):
-        try:
-            self.browser_controller.prepare_for_viewport_screenshot(page, options.window_width, options.window_height)
-            self._take_screenshot(page, output_path, options, full_page=False)
-        except Exception as e:
-            logger.error(f"Error capturing viewport screenshot: {str(e)}")
-            raise ScreenshotServiceException(f"Failed to capture viewport screenshot: {str(e)}")
+    async def _prepare_page(self, page: Page, options):
+        await self.browser_controller.prepare_page(page, options)
 
-    def _take_screenshot(self, page, output_path, options, full_page):
+    async def _perform_capture(self, page: Page, output_path, options):
+        if options.format == 'pdf':
+            await self._capture_pdf(page, output_path, options)
+        elif options.full_page:
+            await self._capture_full_page_screenshot(page, output_path, options)
+        else:
+            await self._capture_viewport_screenshot(page, output_path, options)
+
+    async def _capture_pdf(self, page: Page, output_path, options):
+        pdf_options = {k: v for k, v in options.dict().items() if k.startswith('pdf_') and v is not None}
+        await page.pdf(path=output_path, **pdf_options)
+
+    async def _capture_full_page_screenshot(self, page: Page, output_path, options):
+        await self.browser_controller.prepare_for_full_page_screenshot(page, options.window_width)
+        await self._take_screenshot(page, output_path, options, full_page=True)
+
+    async def _capture_viewport_screenshot(self, page: Page, output_path, options):
+        await self._take_screenshot(page, output_path, options, full_page=False)
+
+    async def _take_screenshot(self, page: Page, output_path, options, full_page: bool):
         screenshot_options = {
             'path': output_path,
             'full_page': full_page,
+            'type': options.format,
             'quality': options.image_quality if options.format != 'png' else None,
             'omit_background': options.omit_background,
-            'type': options.format,
         }
 
-        try:
-            if options.selector:
-                element = page.query_selector(options.selector)
-                if element:
-                    element.screenshot(**screenshot_options)
-                else:
-                    raise ElementNotFoundException(f"Selector '{options.selector}' not found on the page.")
+        if options.selector:
+            element = await page.query_selector(options.selector)
+            if element:
+                await element.screenshot(**screenshot_options)
             else:
-                page.screenshot(**screenshot_options)
-        except ElementNotFoundException as e:
-            logger.error(f"Error taking screenshot: {str(e)}")
-            raise
-        except Exception as e:
-            logger.error(f"Error taking screenshot: {str(e)}")
-            raise ScreenshotServiceException(f"Failed to take screenshot: {str(e)}")
+                raise ScreenshotServiceException(f"Selector '{options.selector}' not found on the page.")
+        else:
+            await page.screenshot(**screenshot_options)
 
-    def _crop_screenshot_if_necessary(self, output_path, window_width, pixel_density):
-        try:
-            with Image.open(output_path) as img:
-                target_width = int(window_width * pixel_density)
-                if img.width > target_width:
-                    logger.info(f"Cropping image from {img.width}px to {target_width}px width")
-                    cropped_img = img.crop((0, 0, target_width, img.height))
-
-                    # Save the cropped image in the same format as the original
-                    cropped_img.save(output_path, format=img.format)
-        except Exception as e:
-            logger.error(f"Error cropping screenshot: {str(e)}")
-            raise ScreenshotServiceException(f"Failed to crop screenshot: {str(e)}")
-
-    def capture_html(self, page, options):
-        try:
-            if options.html_wait_for_selector:
-                page.wait_for_selector(options.html_wait_for_selector, timeout=options.html_wait_for_timeout)
-
-            if options.html_include_resources:
-                html = page.content()
-            else:
-                html = page.inner_html('body')
-
-            return html
-        except Exception as e:
-            logger.error(f"Error capturing HTML: {str(e)}")
-            raise ScreenshotServiceException(f"Failed to capture HTML: {str(e)}")
-
-    def capture_pdf(self, page, output_path, options):
-        try:
-            pdf_options = {
-                'path': output_path,
-                'print_background': options.pdf_print_background,
-                'scale': options.pdf_scale,
-                'page_ranges': options.pdf_page_ranges,
-                'format': options.pdf_format,
-                'width': options.pdf_width,
-                'height': options.pdf_height,
-            }
-            # Remove None values
-            pdf_options = {k: v for k, v in pdf_options.items() if v is not None}
-            page.pdf(**pdf_options)
-        except Exception as e:
-            logger.error(f"Error capturing PDF: {str(e)}")
-            raise ScreenshotServiceException(f"Failed to capture PDF: {str(e)}")
+    async def close(self):
+        await self.context_manager.close()

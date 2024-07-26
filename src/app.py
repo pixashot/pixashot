@@ -8,21 +8,19 @@ import traceback
 from logging.config import dictConfig
 from urllib.parse import urlparse
 
-from flask import Flask, abort, after_this_request, request, send_file, make_response
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from quart import Quart, abort, request, send_file, make_response
+from quart_rate_limiter import RateLimiter, rate_limit
 
 from config import get_logging_config
 from capture_request import CaptureRequest
 from capture_service import CaptureService
 from exceptions import ScreenshotServiceException
+from playwright.async_api import async_playwright
 
 # Configure logging
 dictConfig(get_logging_config())
 
-app = Flask(__name__)
-
-# Create a single instance of CaptureService
+app = Quart(__name__)
 capture_service = CaptureService()
 
 # Read rate limiting configuration from environment variables
@@ -30,16 +28,22 @@ RATE_LIMIT_ENABLED = os.environ.get('RATE_LIMIT_ENABLED', 'False').lower() == 't
 RATE_LIMIT_CAPTURE = os.environ.get('RATE_LIMIT_CAPTURE', '1 per second')
 
 # Initialize rate limiter
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=[],
-    storage_uri="memory://"
-)
+limiter = RateLimiter(app)
+
+
+@app.before_serving
+async def startup():
+    playwright = await async_playwright().start()
+    await capture_service.initialize(playwright)
+
+
+@app.after_serving
+async def shutdown():
+    await capture_service.close()
 
 
 @app.before_request
-def auth_token_middleware():
+async def auth_token_middleware():
     if os.environ.get('AUTH_TOKEN'):
         auth_header = request.headers.get('Authorization')
         token = auth_header.split(' ')[1] if auth_header else None
@@ -52,21 +56,21 @@ def auth_token_middleware():
 
 
 @app.route('/capture', methods=['POST'])
-@limiter.limit(RATE_LIMIT_CAPTURE) if RATE_LIMIT_ENABLED else limiter.exempt
-def capture():
+@rate_limit(RATE_LIMIT_CAPTURE) if RATE_LIMIT_ENABLED else lambda x: x
+async def capture():
     try:
-        options = CaptureRequest(**request.json)
+        options = CaptureRequest(**(await request.json))
     except ValueError as e:
         app.logger.error(f"Invalid request parameters: {str(e)}")
         return {'status': 'error', 'message': str(e)}, 400
 
     try:
         if options.format == 'html':
-            html_content = capture_service.capture_screenshot(None, options)
+            html_content = await capture_service.capture_screenshot(None, options)
             if options.response_type == 'json':
                 return {'html': base64.b64encode(html_content.encode()).decode('utf-8')}, 200
             else:
-                response = make_response(html_content)
+                response = await make_response(html_content)
                 response.headers['Content-Type'] = 'text/html'
                 return response
         else:
@@ -77,10 +81,10 @@ def capture():
 
             output_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
 
-            capture_service.capture_screenshot(output_path, options)
+            await capture_service.capture_screenshot(output_path, options)
 
-            @after_this_request
-            def remove_file(response):
+            @app.after_this_request
+            async def remove_file(response):
                 if os.path.exists(output_path):
                     os.remove(output_path)
                 return response
@@ -93,7 +97,7 @@ def capture():
                 return {'file': base64.b64encode(file_data).decode('utf-8')}, 200
             else:  # by_format
                 mime_type = 'application/pdf' if options.format == 'pdf' else f'image/{options.format}'
-                return send_file(output_path, mimetype=mime_type)
+                return await send_file(output_path, mimetype=mime_type)
 
     except ScreenshotServiceException as e:
         app.logger.error(f"Screenshot service error: {str(e)}")
