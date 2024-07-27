@@ -24,3 +24,15 @@ class TimeoutException(ScreenshotServiceException):
 
 class InteractionException(ScreenshotServiceException):
     """Exception raised when there's an error during user interaction simulation"""
+
+
+class AuthenticationError(Exception):
+    pass
+
+
+class SignatureExpiredError(AuthenticationError):
+    pass
+
+
+class InvalidSignatureError(AuthenticationError):
+    pass
