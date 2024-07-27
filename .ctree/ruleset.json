@@ -10,6 +10,9 @@
             "Dockerfile",
             "app.py",
             "screenshot_capture_service.py"
+        ],
+        "exclude" : [
+            ".env"
         ]
     }
 }
