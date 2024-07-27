@@ -7,6 +7,7 @@ import time
 import traceback
 from logging.config import dictConfig
 from io import BytesIO
+from urllib.parse import parse_qs, urlparse
 
 from quart import Quart, abort, request, send_file, make_response
 from quart_rate_limiter import RateLimiter, rate_limit
@@ -16,7 +17,7 @@ from capture_request import CaptureRequest
 from capture_service import CaptureService
 from exceptions import ScreenshotServiceException
 from playwright.async_api import async_playwright
-from request_auth import is_authenticated
+from request_auth import is_authenticated, verify_signed_url, generate_signed_url
 
 # Configure logging
 dictConfig(get_logging_config())
@@ -33,6 +34,9 @@ PROXY_SERVER = os.environ.get('PROXY_SERVER')
 PROXY_PORT = os.environ.get('PROXY_PORT')
 PROXY_USERNAME = os.environ.get('PROXY_USERNAME')
 PROXY_PASSWORD = os.environ.get('PROXY_PASSWORD')
+
+# URL signing secret
+URL_SIGNING_SECRET = os.environ.get('URL_SIGNING_SECRET')
 
 # Initialize rate limiter
 limiter = RateLimiter(app)
@@ -53,7 +57,12 @@ async def shutdown():
 
 @app.before_request
 async def auth_middleware():
-    if not is_authenticated(request):
+    if request.path == '/capture' and request.method == 'GET':
+        # Get requests can be signed
+        query_params = parse_qs(urlparse(request.url).query)
+        if not verify_signed_url(query_params):
+            abort(401, description="Invalid or expired signed URL")
+    elif not is_authenticated(request):
         abort(401, description="Authentication failed. Provide a valid auth token or use a signed URL.")
 
 
@@ -63,11 +72,15 @@ def apply_rate_limit(f):
     return f
 
 
-@app.route('/capture', methods=['POST'])
+@app.route('/capture', methods=['POST', 'GET'])
 @apply_rate_limit
 async def capture():
     try:
-        options = CaptureRequest(**(await request.json))
+        if request.method == 'POST':
+            options = CaptureRequest(**(await request.json))
+        elif request.method == 'GET':
+            query_params = parse_qs(urlparse(request.url).query)
+            options = CaptureRequest(**{k: v[0] for k, v in query_params.items() if k != 'signature'})
 
         # Apply proxy settings from environment variables if not provided in the request
         if not options.proxy_server and PROXY_SERVER:
@@ -136,6 +149,23 @@ async def capture():
             'message': 'An unexpected error occurred while capturing.',
             'errorDetails': str(e),
             'stackTrace': traceback.format_exc()
+        }, 500
+
+
+@app.route('/sign_url', methods=['POST'])
+@apply_rate_limit
+async def generate_signed_url_route():
+    try:
+        capture_options = await request.json
+        base_url = request.host_url + 'capture'
+        signed_url = generate_signed_url(base_url, capture_options, URL_SIGNING_SECRET)
+        return {'signed_url': signed_url}
+    except Exception as e:
+        app.logger.exception("Error generating signed URL")
+        return {
+            'status': 'error',
+            'message': 'An error occurred while generating the signed URL.',
+            'errorDetails': str(e)
         }, 500
 
 
