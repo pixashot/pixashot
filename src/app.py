@@ -38,7 +38,16 @@ URL_SIGNING_SECRET = os.environ.get('URL_SIGNING_SECRET')
 # Initialize rate limiter
 limiter = RateLimiter(app)
 
-# ... [startup and shutdown functions remain the same] ...
+@app.before_serving
+async def startup():
+    global capture_service
+    playwright = await async_playwright().start()
+    capture_service = CaptureService()
+    await capture_service.initialize(playwright)
+
+
+@app.after_serving
+async def shutdown():
 
 @app.before_request
 async def auth_middleware():
