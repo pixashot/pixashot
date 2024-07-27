@@ -4,6 +4,8 @@ Pixashot is a powerful, flexible, and developer-friendly web screenshot service 
 
 ## ✨ Why Choose Pixashot?
 
+Firstly, please take a look at our [public development roadmap](ROADMAP.md) to get an idea of where Pixashot is heading.
+
 - 🎨 **Pixel-perfect quality**: Renders for any screen size, including Retina displays
 - 🔧 **Highly customizable**: Supports dark mode, custom JavaScript injection, and more
 - 🌐 **Full-page capture**: Takes screenshots of entire web pages, including lazy-loaded content
