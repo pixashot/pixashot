@@ -12,12 +12,14 @@ from urllib.parse import parse_qs, urlparse
 from quart import Quart, abort, request, send_file, make_response
 from quart_rate_limiter import RateLimiter, rate_limit
 
+from cache_manager import CacheManager, cache_response
 from config import get_logging_config
 from capture_request import CaptureRequest
 from capture_service import CaptureService
 from exceptions import ScreenshotServiceException, AuthenticationError
 from playwright.async_api import async_playwright
-from request_auth import is_authenticated, verify_signed_url, generate_signed_url, SignatureExpiredError, InvalidSignatureError
+from request_auth import is_authenticated, verify_signed_url, generate_signed_url, SignatureExpiredError, \
+    InvalidSignatureError
 
 # Configure logging
 dictConfig(get_logging_config())
@@ -34,9 +36,22 @@ PROXY_PORT = os.environ.get('PROXY_PORT')
 PROXY_USERNAME = os.environ.get('PROXY_USERNAME')
 PROXY_PASSWORD = os.environ.get('PROXY_PASSWORD')
 URL_SIGNING_SECRET = os.environ.get('URL_SIGNING_SECRET')
+CACHE_MAX_SIZE = int(os.environ.get('CACHE_MAX_SIZE', 0))
 
 # Initialize rate limiter
 limiter = RateLimiter(app)
+
+
+# Configure caching
+app.config['CACHING_ENABLED'] = CACHE_MAX_SIZE > 0
+app.cache_manager = CacheManager(max_size=CACHE_MAX_SIZE if app.config['CACHING_ENABLED'] else None)
+
+# Log caching status
+if app.config['CACHING_ENABLED']:
+    app.logger.info(f"Caching enabled with max size: {CACHE_MAX_SIZE}")
+else:
+    app.logger.info("Caching disabled")
+
 
 @app.before_serving
 async def startup():
@@ -48,6 +63,8 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
+    await capture_service.close()
+
 
 @app.before_request
 async def auth_middleware():
@@ -60,17 +77,21 @@ async def auth_middleware():
     except (SignatureExpiredError, InvalidSignatureError, AuthenticationError) as e:
         abort(401, description=str(e))
 
+
 def apply_rate_limit(f):
     if RATE_LIMIT_ENABLED:
         def rate_limit_func():
             if request.path == '/capture' and request.method == 'GET':
                 return rate_limit(RATE_LIMIT_SIGNED)
             return rate_limit(RATE_LIMIT_CAPTURE)
+
         return rate_limit_func()(f)
     return f
 
+
 @app.route('/capture', methods=['POST', 'GET'])
 @apply_rate_limit
+@cache_response
 async def capture():
     try:
         if request.method == 'POST':
@@ -92,7 +113,9 @@ async def capture():
         return {'status': 'error', 'message': str(e), 'errorType': e.__class__.__name__}, 500
     except Exception as e:
         app.logger.exception("Unexpected error occurred")
-        return {'status': 'error', 'message': 'An unexpected error occurred while capturing.', 'errorDetails': str(e)}, 500
+        return {'status': 'error', 'message': 'An unexpected error occurred while capturing.',
+                'errorDetails': str(e)}, 500
+
 
 @app.route('/sign_url', methods=['POST'])
 @apply_rate_limit
@@ -106,7 +129,9 @@ async def generate_signed_url_route():
         return {'signed_url': signed_url}
     except Exception as e:
         app.logger.exception("Error generating signed URL")
-        return {'status': 'error', 'message': 'An error occurred while generating the signed URL.', 'errorDetails': str(e)}, 500
+        return {'status': 'error', 'message': 'An error occurred while generating the signed URL.',
+                'errorDetails': str(e)}, 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
