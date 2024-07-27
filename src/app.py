@@ -103,7 +103,53 @@ async def capture():
         # Apply proxy settings from environment variables
         options.apply_proxy_settings(PROXY_SERVER, PROXY_PORT, PROXY_USERNAME, PROXY_PASSWORD)
 
-        # ... [rest of the capture function remains the same] ...
+        # Apply proxy settings from environment variables if not provided in the request
+        if not options.proxy_server and PROXY_SERVER:
+            options.proxy_server = PROXY_SERVER
+        if not options.proxy_port and PROXY_PORT:
+            options.proxy_port = int(PROXY_PORT)
+        if not options.proxy_username and PROXY_USERNAME:
+            options.proxy_username = PROXY_USERNAME
+        if not options.proxy_password and PROXY_PASSWORD:
+            options.proxy_password = PROXY_PASSWORD
+
+        if options.format == 'html':
+            html_content = await capture_service.capture_screenshot(None, options)
+            if options.response_type == 'json':
+                return {'html': base64.b64encode(html_content.encode()).decode('utf-8')}, 200
+            else:
+                response = await make_response(html_content)
+                response.headers['Content-Type'] = 'text/html'
+                return response
+        else:
+            if options.url:
+                hostname = urlparse(str(options.url)).hostname.replace('.', '-')
+            else:
+                hostname = 'html-content'
+
+            output_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
+
+            await capture_service.capture_screenshot(output_path, options)
+
+            if options.response_type == 'empty':
+                os.remove(output_path)
+                return '', 204
+            elif options.response_type == 'json':
+                with open(output_path, 'rb') as f:
+                    file_data = f.read()
+                os.remove(output_path)
+                return {'file': base64.b64encode(file_data).decode('utf-8')}, 200
+            else:  # by_format
+                mime_type = 'application/pdf' if options.format == 'pdf' else f'image/{options.format}'
+                with open(output_path, 'rb') as f:
+                    file_data = f.read()
+                os.remove(output_path)
+                return await send_file(
+                    BytesIO(file_data),
+                    mimetype=mime_type,
+                    as_attachment=True,
+                    attachment_filename=f"screenshot.{options.format}"
+                )
 
     except ValueError as e:
         app.logger.error(f"Invalid request parameters: {str(e)}")
