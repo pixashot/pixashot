@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+
 import base64
 import logging
 import random
@@ -20,6 +22,11 @@ from exceptions import ScreenshotServiceException, AuthenticationError
 from playwright.async_api import async_playwright
 from request_auth import is_authenticated, verify_signed_url, generate_signed_url, SignatureExpiredError, \
     InvalidSignatureError
+
+# Load .env file if it exists
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
 
 # Configure logging
 dictConfig(get_logging_config())

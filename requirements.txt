@@ -6,3 +6,4 @@ pydantic
 Pillow
 tenacity
 ua-generator
+python-dotenv
