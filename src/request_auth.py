@@ -1,4 +1,3 @@
-import os
 import time
 import hmac
 import hashlib
@@ -6,16 +5,16 @@ import base64
 from urllib.parse import parse_qs, urlparse, urlencode
 
 from exceptions import InvalidSignatureError, SignatureExpiredError, AuthenticationError
+from config import Config
 
-URL_SIGNING_SECRET = os.environ.get('URL_SIGNING_SECRET')
-AUTH_TOKEN = os.environ.get('AUTH_TOKEN')
+config = Config()
 
 
 def verify_auth_token(auth_header):
-    if not AUTH_TOKEN:
+    if not config.AUTH_TOKEN:
         return False
     token = auth_header.split(' ')[1] if auth_header and len(auth_header.split(' ')) > 1 else None
-    return token == AUTH_TOKEN
+    return token == config.AUTH_TOKEN
 
 
 def generate_signature(params, secret_key):
@@ -68,7 +67,7 @@ def is_authenticated(request):
     query_params = parse_qs(parsed_url.query)
 
     try:
-        verify_signed_url(query_params, URL_SIGNING_SECRET)
+        verify_signed_url(query_params, config.URL_SIGNING_SECRET)
         return True
     except AuthenticationError:
         return False

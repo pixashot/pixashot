@@ -15,7 +15,7 @@ from quart import Quart, abort, request, send_file, make_response
 from quart_rate_limiter import RateLimiter, rate_limit
 
 from cache_manager import CacheManager, cache_response
-from config import get_logging_config
+from config import Config, get_logging_config
 from capture_request import CaptureRequest
 from capture_service import CaptureService
 from exceptions import ScreenshotServiceException, AuthenticationError
@@ -34,28 +34,19 @@ dictConfig(get_logging_config())
 app = Quart(__name__)
 capture_service = CaptureService()
 
-# Read configuration from environment variables
-RATE_LIMIT_ENABLED = os.environ.get('RATE_LIMIT_ENABLED', 'False').lower() == 'true'
-RATE_LIMIT_CAPTURE = os.environ.get('RATE_LIMIT_CAPTURE', '1 per second')
-RATE_LIMIT_SIGNED = os.environ.get('RATE_LIMIT_SIGNED', '5 per second')
-PROXY_SERVER = os.environ.get('PROXY_SERVER')
-PROXY_PORT = os.environ.get('PROXY_PORT')
-PROXY_USERNAME = os.environ.get('PROXY_USERNAME')
-PROXY_PASSWORD = os.environ.get('PROXY_PASSWORD')
-URL_SIGNING_SECRET = os.environ.get('URL_SIGNING_SECRET')
-CACHE_MAX_SIZE = int(os.environ.get('CACHE_MAX_SIZE', 0))
+# Read configuration from Config object
+config = Config()
 
 # Initialize rate limiter
 limiter = RateLimiter(app)
 
-
 # Configure caching
-app.config['CACHING_ENABLED'] = CACHE_MAX_SIZE > 0
-app.cache_manager = CacheManager(max_size=CACHE_MAX_SIZE if app.config['CACHING_ENABLED'] else None)
+app.config['CACHING_ENABLED'] = config.CACHE_MAX_SIZE > 0
+app.cache_manager = CacheManager(max_size=config.CACHE_MAX_SIZE if app.config['CACHING_ENABLED'] else None)
 
 # Log caching status
 if app.config['CACHING_ENABLED']:
-    app.logger.info(f"Caching enabled with max size: {CACHE_MAX_SIZE}")
+    app.logger.info(f"Caching enabled with max size: {config.CACHE_MAX_SIZE}")
 else:
     app.logger.info("Caching disabled")
 
@@ -78,7 +69,7 @@ async def auth_middleware():
     try:
         if request.path == '/capture' and request.method == 'GET':
             query_params = parse_qs(urlparse(request.url).query)
-            verify_signed_url(query_params, URL_SIGNING_SECRET)
+            verify_signed_url(query_params, config.URL_SIGNING_SECRET)
         elif not is_authenticated(request):
             raise AuthenticationError("Authentication failed")
     except (SignatureExpiredError, InvalidSignatureError, AuthenticationError) as e:
@@ -86,11 +77,11 @@ async def auth_middleware():
 
 
 def apply_rate_limit(f):
-    if RATE_LIMIT_ENABLED:
+    if config.RATE_LIMIT_ENABLED:
         def rate_limit_func():
             if request.path == '/capture' and request.method == 'GET':
-                return rate_limit(RATE_LIMIT_SIGNED)
-            return rate_limit(RATE_LIMIT_CAPTURE)
+                return rate_limit(config.RATE_LIMIT_SIGNED)
+            return rate_limit(config.RATE_LIMIT_CAPTURE)
 
         return rate_limit_func()(f)
     return f
@@ -107,18 +98,15 @@ async def capture():
             query_params = parse_qs(urlparse(request.url).query)
             options = CaptureRequest(**{k: v[0] for k, v in query_params.items() if k not in ['signature', 'expires']})
 
-        # Apply proxy settings from environment variables
-        options.apply_proxy_settings(PROXY_SERVER, PROXY_PORT, PROXY_USERNAME, PROXY_PASSWORD)
-
         # Apply proxy settings from environment variables if not provided in the request
-        if not options.proxy_server and PROXY_SERVER:
-            options.proxy_server = PROXY_SERVER
-        if not options.proxy_port and PROXY_PORT:
-            options.proxy_port = int(PROXY_PORT)
-        if not options.proxy_username and PROXY_USERNAME:
-            options.proxy_username = PROXY_USERNAME
-        if not options.proxy_password and PROXY_PASSWORD:
-            options.proxy_password = PROXY_PASSWORD
+        if not options.proxy_server and config.PROXY_SERVER:
+            options.proxy_server = config.PROXY_SERVER
+        if not options.proxy_port and config.PROXY_PORT:
+            options.proxy_port = int(config.PROXY_PORT)
+        if not options.proxy_username and config.PROXY_USERNAME:
+            options.proxy_username = config.PROXY_USERNAME
+        if not options.proxy_password and config.PROXY_PASSWORD:
+            options.proxy_password = config.PROXY_PASSWORD
 
         if options.format == 'html':
             html_content = await capture_service.capture_screenshot(None, options)
@@ -178,7 +166,7 @@ async def generate_signed_url_route():
         capture_options = data.get('options', {})
         expiration = data.get('expiration', 3600)  # Default to 1 hour
         base_url = request.host_url + 'capture'
-        signed_url = generate_signed_url(base_url, capture_options, URL_SIGNING_SECRET, expires_in=expiration)
+        signed_url = generate_signed_url(base_url, capture_options, config.URL_SIGNING_SECRET, expires_in=expiration)
         return {'signed_url': signed_url}
     except Exception as e:
         app.logger.exception("Error generating signed URL")
@@ -187,5 +175,4 @@ async def generate_signed_url_route():
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=config.PORT, debug=True)
