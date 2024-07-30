@@ -1,3 +1,5 @@
+# routes.py
+
 import os
 import base64
 import logging
@@ -7,10 +9,9 @@ import time
 from io import BytesIO
 from urllib.parse import parse_qs, urlparse
 
-from quart import abort, request, send_file, make_response
+from quart import abort, request, send_file, make_response, current_app
 from quart_rate_limiter import rate_limit
 
-from app import app, capture_service, limiter
 from cache_manager import cache_response
 from config import config
 from capture_request import CaptureRequest
@@ -19,7 +20,7 @@ from request_auth import is_authenticated, verify_signed_url, generate_signed_ur
     InvalidSignatureError
 
 
-@app.before_request
+@current_app.before_request
 async def auth_middleware():
     try:
         if request.path == '/capture' and request.method == 'GET':
@@ -38,11 +39,11 @@ def apply_rate_limit(f):
                 return rate_limit(config.RATE_LIMIT_SIGNED)
             return rate_limit(config.RATE_LIMIT_CAPTURE)
 
-        return rate_limit_func()(f)
+        return current_app.container.rate_limiter.limit(rate_limit_func())(f)
     return f
 
 
-@app.route('/capture', methods=['POST', 'GET'])
+@current_app.route('/capture', methods=['POST', 'GET'])
 @apply_rate_limit
 @cache_response
 async def capture():
@@ -62,6 +63,8 @@ async def capture():
             options.proxy_username = config.PROXY_USERNAME
         if not options.proxy_password and config.PROXY_PASSWORD:
             options.proxy_password = config.PROXY_PASSWORD
+
+        capture_service = current_app.container.capture_service
 
         if options.format == 'html':
             html_content = await capture_service.capture_screenshot(None, options)
@@ -102,18 +105,18 @@ async def capture():
                 )
 
     except ValueError as e:
-        app.logger.error(f"Invalid request parameters: {str(e)}")
+        current_app.logger.error(f"Invalid request parameters: {str(e)}")
         return {'status': 'error', 'message': str(e)}, 400
     except ScreenshotServiceException as e:
-        app.logger.error(f"Screenshot service error: {str(e)}")
+        current_app.logger.error(f"Screenshot service error: {str(e)}")
         return {'status': 'error', 'message': str(e), 'errorType': e.__class__.__name__}, 500
     except Exception as e:
-        app.logger.exception("Unexpected error occurred")
+        current_app.logger.exception("Unexpected error occurred")
         return {'status': 'error', 'message': 'An unexpected error occurred while capturing.',
                 'errorDetails': str(e)}, 500
 
 
-@app.route('/sign_url', methods=['POST'])
+@current_app.route('/sign_url', methods=['POST'])
 @apply_rate_limit
 async def generate_signed_url_route():
     try:
@@ -124,6 +127,6 @@ async def generate_signed_url_route():
         signed_url = generate_signed_url(base_url, capture_options, config.URL_SIGNING_SECRET, expires_in=expiration)
         return {'signed_url': signed_url}
     except Exception as e:
-        app.logger.exception("Error generating signed URL")
+        current_app.logger.exception("Error generating signed URL")
         return {'status': 'error', 'message': 'An error occurred while generating the signed URL.',
                 'errorDetails': str(e)}, 500
