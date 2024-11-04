@@ -57,6 +57,7 @@ else:
 
 @app.before_serving
 async def startup():
+    app.start_time = time.time()
     await app.container.initialize()
 
 

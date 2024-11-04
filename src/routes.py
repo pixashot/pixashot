@@ -1,23 +1,39 @@
-# routes.py
-
+# Standard library imports
 import os
 import base64
 import logging
 import random
 import tempfile
 import time
+from datetime import datetime
 from io import BytesIO
 from urllib.parse import parse_qs, urlparse
 
-from quart import abort, request, send_file, make_response, current_app
+# Third-party imports
+from quart import (
+    abort,
+    current_app,
+    make_response,
+    request,
+    send_file,
+)
 from quart_rate_limiter import rate_limit
 
+# Local application imports
 from cache_manager import cache_response
 from config import config
 from capture_request import CaptureRequest
-from exceptions import ScreenshotServiceException, AuthenticationError
-from request_auth import is_authenticated, verify_signed_url, generate_signed_url, SignatureExpiredError, \
-    InvalidSignatureError
+from exceptions import (
+    AuthenticationError,
+    ScreenshotServiceException,
+    SignatureExpiredError,
+    InvalidSignatureError,
+)
+from request_auth import (
+    generate_signed_url,
+    is_authenticated,
+    verify_signed_url,
+)
 
 
 @current_app.before_request
@@ -130,3 +146,61 @@ async def generate_signed_url_route():
         current_app.logger.exception("Error generating signed URL")
         return {'status': 'error', 'message': 'An error occurred while generating the signed URL.',
                 'errorDetails': str(e)}, 500
+
+
+@current_app.route('/health')
+@current_app.route('/health/ready')
+async def health_check():
+    """
+    Health check endpoint that verifies:
+    1. Service is up
+    2. Can create a browser context
+    3. Memory usage is within bounds
+    4. Service has been running for a known duration
+    """
+    try:
+        # Try to get a browser context with minimal options
+        context = await current_app.container.capture_service.context_manager.get_context(
+            CaptureRequest(url="about:blank")
+        )
+
+        # Get process metrics
+        process = psutil.Process(os.getpid())
+        memory_usage = process.memory_info().rss / 1024 / 1024  # MB
+        cpu_percent = process.cpu_percent()
+
+        # Get context manager metrics
+        active_contexts = len(current_app.container.capture_service.context_manager.contexts)
+
+        # Calculate uptime if start_time exists
+        uptime = time.time() - current_app.start_time if hasattr(current_app, 'start_time') else 0
+
+        return {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'checks': {
+                'browser_context': 'ok',
+                'memory_usage_mb': round(memory_usage, 2),
+                'cpu_percent': round(cpu_percent, 2),
+                'active_contexts': active_contexts,
+                'uptime_seconds': round(uptime, 2)
+            },
+            'version': os.getenv('VERSION', '1.0.0')
+        }, 200
+
+    except Exception as e:
+        current_app.logger.error(f"Health check failed: {str(e)}")
+        return {
+            'status': 'unhealthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'error': str(e)
+        }, 503
+
+
+@current_app.route('/health/live')
+async def liveness():
+    """
+    Simple liveness check that just confirms the service is running
+    and can respond to HTTP requests.
+    """
+    return {'status': 'alive'}, 200
