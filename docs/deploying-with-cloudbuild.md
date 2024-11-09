@@ -1,12 +1,23 @@
 # Deploying with Google Cloud Build
 
-This guide provides detailed instructions for deploying Pixashot using Google Cloud Build and the provided `cloudbuild.yaml` configuration.
+This comprehensive guide walks you through deploying Pixashot using Google Cloud Build, from initial setup to advanced configuration and maintenance.
+
+## Table of Contents
+
+1. [Prerequisites](#prerequisites)
+2. [Initial Setup](#initial-setup)
+3. [Repository Configuration](#repository-configuration)
+4. [Deployment Options](#deployment-options)
+5. [Authentication Setup](#authentication-setup)
+6. [Environment Configuration](#environment-configuration)
+7. [Monitoring and Troubleshooting](#monitoring-and-troubleshooting)
+8. [Best Practices](#best-practices)
+9. [Cost Management](#cost-management)
+10. [Additional Resources](#additional-resources)
 
 ## Prerequisites
 
-### 1. Google Cloud Account Setup
-
-Before you begin, you'll need a Google Cloud account. Here's how to get started:
+### Google Cloud Account Setup
 
 1. **Sign up for Google Cloud**
    - Visit [cloud.google.com](https://cloud.google.com)
@@ -31,18 +42,20 @@ Before you begin, you'll need a Google Cloud account. Here's how to get started:
      - Cloud Functions (2 million invocations)
      - Various AI and ML services
 
-### 2. Install Google Cloud SDK
+## Initial Setup
 
-#### For Windows:
+### 1. Install Google Cloud SDK
+
+#### Windows Installation
 1. Download and install from: [Google Cloud SDK Installation Guide](https://cloud.google.com/sdk/docs/install)
 2. Run the installer
 3. Open Google Cloud SDK Shell
 4. Initialize the SDK:
-   ```bash
-   gcloud init
-   ```
+```bash
+gcloud init
+```
 
-#### For macOS:
+#### macOS Installation
 ```bash
 # Using Homebrew
 brew install --cask google-cloud-sdk
@@ -51,7 +64,7 @@ brew install --cask google-cloud-sdk
 gcloud init
 ```
 
-#### For Linux:
+#### Linux Installation
 ```bash
 # Add Google Cloud SDK distribution URI as a package source
 echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -66,150 +79,82 @@ sudo apt-get update && sudo apt-get install google-cloud-sdk
 gcloud init
 ```
 
-### 3. Initial Project Setup
+### 2. Project Setup
 
-1. **Log in to Google Cloud**
-   ```bash
-   gcloud auth login
-   ```
-   Follow the browser prompts to authenticate your account.
+1. **Authentication**
+```bash
+gcloud auth login
+```
 
 2. **Project Management**
-   ```bash
-   # List existing projects
-   gcloud projects list
+```bash
+# List existing projects
+gcloud projects list
 
-   # Create a new project (optional)
-   gcloud projects create YOUR_PROJECT_ID --name="Your Project Name"
+# Create a new project
+gcloud projects create YOUR_PROJECT_ID --name="Your Project Name"
 
-   # Set your active project
-   gcloud config set project YOUR_PROJECT_ID
+# Set active project
+gcloud config set project YOUR_PROJECT_ID
+```
 
-   # Verify selected project
-   gcloud config get-value project
-   ```
-   Replace `YOUR_PROJECT_ID` with your desired project ID. Project IDs must be:
-   - Between 6 and 30 characters
-   - Contain only lowercase letters, numbers, and hyphens
-   - Start with a letter
-   - Be globally unique across Google Cloud
+3. **Enable Required APIs**
+```bash
+# Enable all required APIs
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable run.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
+gcloud services enable storage.googleapis.com
+gcloud services enable logging.googleapis.com
 
-### 4. Enable Required APIs
+# Verify API enablement
+gcloud services list --enabled --filter="name:( \
+cloudbuild.googleapis.com \
+run.googleapis.com \
+artifactregistry.googleapis.com \
+storage.googleapis.com \
+logging.googleapis.com \
+)"
+```
 
-After setting up your project, enable the necessary APIs:
-
-1. **Enable Core Services**
-   ```bash
-   # Enable required APIs for the project
-   gcloud services enable cloudbuild.googleapis.com
-   gcloud services enable run.googleapis.com
-   gcloud services enable artifactregistry.googleapis.com
-   ```
-
-2. **Verify API Enablement**
-   ```bash
-   # List enabled APIs
-   gcloud services list --enabled
-
-   # Check status of specific API
-   gcloud services list --enabled --filter="name:( cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com )"
-   ```
-
-### 5. Configure Docker Authentication
-
+4. **Configure Docker Authentication**
 ```bash
 gcloud auth configure-docker
 ```
 
-## Creating the Artifact Registry Repository
+## Repository Configuration
 
-1. **Create a repository**:
-   ```bash
-   gcloud artifacts repositories create pixashot-repo \
-       --repository-format=docker \
-       --location=us-central1 \
-       --description="Docker repository for Pixashot"
-   ```
+### Create Artifact Registry Repository
 
-2. **Verify repository creation**:
-   ```bash
-   gcloud artifacts repositories list
-   ```
+1. **Create Repository**
+```bash
+gcloud artifacts repositories create pixashot-repo \
+    --repository-format=docker \
+    --location=us-central1 \
+    --description="Docker repository for Pixashot"
+```
 
-## Cloud Build Configuration
+2. **Verify Creation**
+```bash
+gcloud artifacts repositories list
+```
 
-The project includes a `cloudbuild.yaml` file ([view file](../cloudbuild.yaml)) that handles the build and deployment process. Here are the key configuration options you can customize:
+## Deployment Options
 
-### Important Configuration Options
+### Configuration Options
 
 | Option | Description | Default | Example Usage |
 |--------|-------------|---------|---------------|
 | Region | Deployment location | us-central1 | us-east1, europe-west1 |
 | Service Name | Cloud Run service name | pixashot | my-pixashot-prod |
-| Memory | Container memory | 1Gi | 2Gi, 512Mi |
+| Memory | Container memory | 2Gi | 2Gi, 512Mi |
 | CPU | CPU allocation | 1 | 2, 0.5 |
 | Min Instances | Minimum running instances | 0 | 1, 2 |
 | Max Instances | Maximum running instances | 10 | 5, 20 |
 | Port | Container port | 8080 | 3000, 8000 |
 | Timeout | Request timeout (seconds) | 300 | 600, 900 |
 
-# Deployment Examples
-
-## Basic Deployment
-
-Deploy with default settings:
-```bash
-gcloud builds submit --config cloudbuild.yaml
-```
-
-## Custom Deployment
-
-Override default settings:
-```bash
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=\
-_REGION=us-east1,\
-_SERVICE_NAME=my-pixashot,\
-_MEMORY=2Gi,\
-_CPU=2,\
-_MIN_INSTANCES=1,\
-_MAX_INSTANCES=5
-```
-
-## Environment-Specific Deployment
-
-For different environments:
-
-```bash
-# Development
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=\
-_SERVICE_NAME=pixashot-dev,\
-_MEMORY=512Mi,\
-_MIN_INSTANCES=0,\
-_ENV_VARS="CLOUD_RUN=true,DEBUG=true,ENVIRONMENT=development"
-
-# Production
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=\
-_SERVICE_NAME=pixashot-prod,\
-_MEMORY=2Gi,\
-_MIN_INSTANCES=1,\
-_ENV_VARS="CLOUD_RUN=true,DEBUG=false,ENVIRONMENT=production"
-```
-
-## Setting Additional Environment Variables
-
-You can set multiple environment variables using the `_ENV_VARS` substitution:
-
-```bash
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=_ENV_VARS="CLOUD_RUN=true,AUTH_TOKEN=secret123,RATE_LIMIT_ENABLED=true"
-```
-
-## Default Configuration
-
-The following default values are set in the cloudbuild.yaml:
+### Default Configuration
 
 ```yaml
 _REGION: us-central1
@@ -225,116 +170,177 @@ _TIMEOUT: "300"
 _ENV_VARS: "CLOUD_RUN=true"
 ```
 
-You only need to specify values in your `--substitutions` flag if you want to override these defaults.
+### Basic Deployment
 
-## Important Notes
+Deploy with default settings:
+```bash
+# Without detailed logging
+gcloud builds submit --config cloudbuild.yaml
 
-1. The `CLOUD_RUN=true` environment variable is set by default in the configuration, ensuring proper container initialization and user permissions handling.
+# With detailed logging
+gcloud beta builds submit --config cloudbuild.yaml
+```
 
-2. When setting multiple environment variables, use commas to separate them in the `_ENV_VARS` substitution:
-   ```bash
-   _ENV_VARS="VAR1=value1,VAR2=value2,VAR3=value3"
-   ```
+### Custom Deployment
 
-3. Values in `--substitutions` will override the defaults in cloudbuild.yaml.
+Override default settings:
+```bash
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=\
+_REGION=us-east1,\
+_SERVICE_NAME=my-pixashot,\
+_MEMORY=2Gi,\
+_CPU=2,\
+_MIN_INSTANCES=1,\
+_MAX_INSTANCES=5
+```
 
-4. Remember to use quotes around substitution values that contain special characters or spaces.
+## Authentication Setup
 
-## Post-Deployment Configuration
+### Configuring Application Authentication
 
-1. **Set environment variables**:
-   ```bash
-   gcloud run services update my-pixashot \
-     --region=us-central1 \
-     --set-env-vars=AUTH_TOKEN=your_secure_token,RATE_LIMIT_ENABLED=true
-   ```
+1. **Initial Deployment with Authentication**
+```bash
+# Generate authentication token
+AUTH_TOKEN=$(openssl rand -hex 32)
+echo "Your authentication token is: $AUTH_TOKEN"
 
-2. **View service URL**:
-   ```bash
-   gcloud run services describe my-pixashot \
-     --region=us-central1 \
-     --format='value(status.url)'
-   ```
+# Deploy with token
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_ENV_VARS="CLOUD_RUN=true,AUTH_TOKEN=$AUTH_TOKEN"
+```
+
+2. **Update Authentication Token**
+```bash
+# Generate new token
+AUTH_TOKEN=$(openssl rand -hex 32)
+echo "Your new authentication token is: $AUTH_TOKEN"
+
+# Update service
+gcloud run services update pixashot \
+  --region=us-central1 \
+  --set-env-vars=AUTH_TOKEN=$AUTH_TOKEN
+```
+
+3. **Using Authentication in Requests**
+```bash
+curl -X POST https://your-service-url/capture \
+  -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+### Security Notes
+- Store authentication tokens in a secure password manager or secrets management system
+- Never save tokens in files or version control
+- Rotate tokens regularly
+- Keep backup access to the service in case of token loss
+
+## Environment Configuration
+
+### Development Environment
+```bash
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=\
+_SERVICE_NAME=pixashot-dev,\
+_MEMORY=512Mi,\
+_MIN_INSTANCES=0,\
+_ENV_VARS="CLOUD_RUN=true,DEBUG=true,ENVIRONMENT=development"
+```
+
+### Production Environment
+```bash
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=\
+_SERVICE_NAME=pixashot-prod,\
+_MEMORY=2Gi,\
+_MIN_INSTANCES=1,\
+_ENV_VARS="CLOUD_RUN=true,DEBUG=false,ENVIRONMENT=production"
+```
+
+### Setting Multiple Environment Variables
+```bash
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_ENV_VARS="CLOUD_RUN=true,AUTH_TOKEN=$AUTH_TOKEN,RATE_LIMIT_ENABLED=true"
+```
 
 ## Monitoring and Troubleshooting
 
-1. **View build logs**:
-   ```bash
-   gcloud builds log [BUILD_ID]
-   ```
+### Viewing Logs
 
-2. **List recent builds**:
-   ```bash
-   gcloud builds list
-   ```
+1. **Build Logs**
+```bash
+gcloud builds log [BUILD_ID]
+```
 
-3. **View service logs**:
-   ```bash
-   gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=my-pixashot" --limit=50
-   ```
+2. **Service Logs**
+```bash
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=my-pixashot" --limit=50
+```
 
-## Common Issues and Solutions
+3. **List Recent Builds**
+```bash
+gcloud builds list
+```
 
-1. **Permission Errors**
-   - Ensure your account has the necessary roles:
-     ```bash
-     gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-       --member=user:your-email@example.com \
-       --role=roles/run.admin
-     
-     gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-       --member=user:your-email@example.com \
-       --role=roles/cloudbuild.builds.editor
-     ```
+### Common Issues and Solutions
 
-2. **Build Failures**
-   - Check build logs for detailed error messages
-   - Verify your cloudbuild.yaml syntax
-   - Ensure all required APIs are enabled
+1. **Permission Issues**
+```bash
+# Grant necessary roles
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member=user:your-email@example.com \
+  --role=roles/run.admin
+
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member=user:your-email@example.com \
+  --role=roles/cloudbuild.builds.editor
+```
+
+2. **Container Startup Issues**
+- Check service logs for startup errors
+- Verify environment variables
+- Review health check configuration
 
 3. **Deployment Timeouts**
-   - Increase the timeout value in your substitutions
-   - Check resource allocations
-
-4. **Container Startup Issues**
-   - View service logs for startup errors
-   - Verify environment variables are set correctly
-   - Check container health checks
+- Increase timeout value in substitutions
+- Check resource allocations
+- Review network configuration
 
 ## Best Practices
 
-1. **Version Management**
-   - Use meaningful tags for your deployments
-   - Consider implementing a versioning strategy
-   - Keep track of successful configurations
+### Security
+- Use HTTPS exclusively
+- Implement proper authentication
+- Rotate credentials regularly
+- Review access permissions
+- Monitor security logs
 
-2. **Resource Optimization**
-   - Start with the recommended resources and adjust based on usage
-   - Monitor performance metrics
-   - Use minimum instances wisely to balance cost and performance
+### Performance
+- Start with recommended resources
+- Monitor metrics
+- Adjust based on usage patterns
+- Use minimum instances strategically
 
-3. **Security**
-   - Always use HTTPS
-   - Implement proper authentication
-   - Regularly rotate credentials
-   - Review and audit access permissions
-
-4. **Monitoring**
-   - Set up alerts for critical metrics
-   - Monitor costs and usage
-   - Regularly review logs for issues
+### Version Management
+- Use meaningful tags
+- Implement versioning strategy
+- Track successful configurations
+- Document deployment changes
 
 ## Cost Management
 
-1. **Free Tier Usage**
-   - Monitor your free credit usage through the billing dashboard
-   - Set up billing alerts to avoid unexpected charges
-   - Understand which services are free tier eligible
+### Free Tier Optimization
+- Monitor credit usage
+- Set up billing alerts
+- Understand free tier limits
+- Track usage patterns
 
-2. **Cost Optimization**
-   - Use minimum instances of 0 when possible
-   - Scale resources based on actual usage
-   - Monitor and optimize resource allocation
+### Resource Optimization
+- Use minimum instances of 0 when possible
+- Scale based on actual usage
+- Monitor and optimize resource allocation
+- Review cost reports regularly
 
 ## Additional Resources
 

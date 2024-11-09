@@ -10,6 +10,7 @@
 # $_PORT: Container port (defaults to 8080)
 # $_TIMEOUT: Request timeout in seconds (defaults to 300)
 # $_ENV_VARS: Environment variables to set in Cloud Run (comma-separated key=value pairs)
+# $_ALLOW_UNAUTHENTICATED: Whether to allow unauthenticated access (true/false)
 
 steps:
   # Build the Docker image
@@ -54,7 +55,7 @@ steps:
       - '${_TIMEOUT}'
       - '--set-env-vars'
       - '${_ENV_VARS}'
-      - '--allow-unauthenticated'
+      - '${_ALLOW_UNAUTHENTICATED}'
 
 substitutions:
   _REGION: us-central1
@@ -68,6 +69,7 @@ substitutions:
   _PORT: "8080"
   _TIMEOUT: "300"
   _ENV_VARS: "CLOUD_RUN=true"
+  _ALLOW_UNAUTHENTICATED: ""
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${_TAG}'
