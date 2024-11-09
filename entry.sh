@@ -1,4 +1,5 @@
 #!/bin/bash
+# entry.sh
 
 # Exit on error
 set -e
@@ -7,7 +8,6 @@ set -e
 WORKERS="${WORKERS:-4}"
 KEEP_ALIVE="${KEEP_ALIVE:-300}"
 PORT="${PORT:-8080}"
-TIMEOUT="${TIMEOUT:-300}"
 MAX_REQUESTS="${MAX_REQUESTS:-1000}"
 
 # Start Xvfb
@@ -25,9 +25,8 @@ export PYTHONUNBUFFERED=1
 
 # Use hypercorn to run the application
 exec hypercorn src.app:app \
-    --bind 0.0.0.0:$PORT \
-    --workers $WORKERS \
-    --keep-alive $KEEP_ALIVE \
+    --bind "0.0.0.0:$PORT" \
+    --workers "$WORKERS" \
+    --keep-alive "$KEEP_ALIVE" \
     --graceful-timeout 30 \
-    --timeout $TIMEOUT \
-    --max-requests $MAX_REQUESTS
+    --max-requests "$MAX_REQUESTS"

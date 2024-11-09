@@ -1,0 +1,24 @@
+{
+    "mobile": {
+        "window_width": 375,
+        "window_height": 667,
+        "pixel_density": 2.0,
+        "user_agent_device": "mobile",
+        "user_agent_platform": "ios"
+    },
+    "desktop_full": {
+        "window_width": 1920,
+        "window_height": 1080,
+        "full_page": true,
+        "format": "png",
+        "pixel_density": 2.0
+    },
+    "article_pdf": {
+        "format": "pdf",
+        "pdf_format": "A4",
+        "pdf_print_background": true,
+        "full_page": true,
+        "wait_for_network": "idle",
+        "block_media": true
+    }
+}

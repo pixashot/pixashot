@@ -5,14 +5,15 @@ import base64
 from urllib.parse import parse_qs, urlparse, urlencode
 
 from exceptions import InvalidSignatureError, SignatureExpiredError, AuthenticationError
-from config import Config
-
-config = Config()
+from config import config
 
 
 def verify_auth_token(auth_header):
+    # If no AUTH_TOKEN is set, authentication is disabled
     if not config.AUTH_TOKEN:
-        return False
+        return True
+
+    # If AUTH_TOKEN is set, verify it
     token = auth_header.split(' ')[1] if auth_header and len(auth_header.split(' ')) > 1 else None
     return token == config.AUTH_TOKEN
 
@@ -26,6 +27,10 @@ def generate_signature(params, secret_key):
 
 
 def verify_signed_url(query_params, secret_key):
+    # If no AUTH_TOKEN is set, skip signed URL verification
+    if not config.AUTH_TOKEN:
+        return True
+
     try:
         signature = query_params.get('signature', [None])[0]
         expires = query_params.get('expires', [None])[0]
@@ -45,7 +50,8 @@ def verify_signed_url(query_params, secret_key):
             raise InvalidSignatureError("Invalid signature")
 
     except Exception as e:
-        raise InvalidSignatureError(str(e))
+        if config.AUTH_TOKEN:  # Only raise if authentication is enabled
+            raise InvalidSignatureError(str(e))
 
 
 def generate_signed_url(base_url, params, secret_key, expires_in=3600):
@@ -59,6 +65,10 @@ def generate_signed_url(base_url, params, secret_key, expires_in=3600):
 
 
 def is_authenticated(request):
+    # If no AUTH_TOKEN is set, all requests are considered authenticated
+    if not config.AUTH_TOKEN:
+        return True
+
     auth_header = request.headers.get('Authorization')
     if verify_auth_token(auth_header):
         return True

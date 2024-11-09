@@ -1,8 +1,9 @@
-# app.py
-
 import os
 from dotenv import load_dotenv
 from logging.config import dictConfig
+from datetime import datetime
+import time
+import psutil
 
 from quart import Quart
 from quart_rate_limiter import RateLimiter
@@ -11,6 +12,7 @@ from playwright.async_api import async_playwright
 from cache_manager import CacheManager
 from config import config, get_logging_config
 from capture_service import CaptureService
+from routes import register_routes
 
 
 class AppContainer:
@@ -36,38 +38,45 @@ class AppContainer:
             await self.playwright.stop()
 
 
-# Configure logging
-dictConfig(get_logging_config())
+def create_app():
+    # Configure logging
+    dictConfig(get_logging_config())
 
-app = Quart(__name__)
-app.container = AppContainer()
+    app = Quart(__name__)
 
-# Initialize rate limiter
-app.container.rate_limiter = RateLimiter(app)
+    # Store container in app config instead of directly on app
+    container = AppContainer()
+    app.config['container'] = container
 
-# Configure caching
-app.config['CACHING_ENABLED'] = config.CACHE_MAX_SIZE > 0
+    # Initialize rate limiter
+    container.rate_limiter = RateLimiter(app)
 
-# Log caching status
-if app.config['CACHING_ENABLED']:
-    app.logger.info(f"Caching enabled with max size: {config.CACHE_MAX_SIZE}")
-else:
-    app.logger.info("Caching disabled")
+    # Configure caching
+    app.config['CACHING_ENABLED'] = config.CACHE_MAX_SIZE > 0
+
+    # Log caching status
+    if app.config['CACHING_ENABLED']:
+        app.logger.info(f"Caching enabled with max size: {config.CACHE_MAX_SIZE}")
+    else:
+        app.logger.info("Caching disabled")
+
+    # Register startup and shutdown handlers
+    @app.before_serving
+    async def startup():
+        app.config['start_time'] = time.time()
+        await container.initialize()
+
+    @app.after_serving
+    async def shutdown():
+        await container.close()
+
+    # Register routes
+    register_routes(app)
+
+    return app
 
 
-@app.before_serving
-async def startup():
-    app.start_time = time.time()
-    await app.container.initialize()
-
-
-@app.after_serving
-async def shutdown():
-    await app.container.close()
-
-
-# Import routes
-from routes import *
+app = create_app()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=config.PORT, debug=True)
