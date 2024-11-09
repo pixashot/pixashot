@@ -4,6 +4,7 @@ FROM mcr.microsoft.com/playwright/python:v1.35.0-focal
 # Set environment variables
 ENV PORT=8080 \
     PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
 # Set the working directory
@@ -23,7 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install --with-deps chromium
 
 # Copy application code
-COPY src/ /app/src/
+COPY src/ /app
 COPY entry.sh .
 
 # Prepare the entry script

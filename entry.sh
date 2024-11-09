@@ -1,5 +1,4 @@
 #!/bin/bash
-# entry.sh
 
 # Exit on error
 set -e
@@ -24,7 +23,7 @@ export PYTHONPATH=/app
 export PYTHONUNBUFFERED=1
 
 # Use hypercorn to run the application
-exec hypercorn src.app:app \
+exec hypercorn "app:app" \
     --bind "0.0.0.0:$PORT" \
     --workers "$WORKERS" \
     --keep-alive "$KEEP_ALIVE" \
