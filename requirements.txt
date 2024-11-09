@@ -8,3 +8,8 @@ tenacity
 ua-generator
 python-dotenv
 psutil
+tldextract
+validators
+pytest-asyncio
+pytest-cov
+structlog

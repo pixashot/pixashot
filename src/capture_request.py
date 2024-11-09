@@ -120,7 +120,20 @@ class CaptureRequest(BaseModel):
 
     @model_validator(mode='before')
     def validate_url_or_html_content(cls, values):
-        return validate_url_or_html_content(values)
+        if not values.get('url') and not values.get('html_content'):
+            raise ValueError('Either url or html_content must be provided')
+        if values.get('url') and values.get('html_content'):
+            raise ValueError('Cannot provide both url and html_content')
+
+        # URL security validation
+        if values.get('url'):
+            from security_config import SecurityConfig
+            security_config = SecurityConfig.from_env()
+            is_valid, error = security_config.validate_url(str(values['url']))
+            if not is_valid:
+                raise ValueError(f"URL security validation failed: {error}")
+
+        return values
 
     @model_validator(mode='before')
     def apply_template(cls, values):
