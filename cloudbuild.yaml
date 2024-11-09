@@ -18,8 +18,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${_TAG}'
-      - '--build-arg'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${_TAG}'      - '--build-arg'
       - 'PORT=${_PORT}'
       - '.'
 
@@ -55,7 +54,18 @@ steps:
       - '${_TIMEOUT}'
       - '--set-env-vars'
       - '${_ENV_VARS}'
-      - '${_ALLOW_UNAUTHENTICATED}'
+      - '--allow-unauthenticated'
+
+  # Add IAM policy binding to allow unauthenticated access
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'services'
+      - 'add-iam-policy-binding'
+      - '${_SERVICE_NAME}'
+      - '--region=${_REGION}'
+      - '--member=allUsers'
+      - '--role=roles/run.invoker'
 
 substitutions:
   _REGION: us-central1
@@ -69,7 +79,6 @@ substitutions:
   _PORT: "8080"
   _TIMEOUT: "300"
   _ENV_VARS: "CLOUD_RUN=true"
-  _ALLOW_UNAUTHENTICATED: ""
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${_TAG}'

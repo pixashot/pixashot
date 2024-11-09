@@ -106,6 +106,7 @@ gcloud services enable run.googleapis.com
 gcloud services enable artifactregistry.googleapis.com
 gcloud services enable storage.googleapis.com
 gcloud services enable logging.googleapis.com
+gcloud services enable iam.googleapis.com
 
 # Verify API enablement
 gcloud services list --enabled --filter="name:( \
@@ -114,10 +115,38 @@ run.googleapis.com \
 artifactregistry.googleapis.com \
 storage.googleapis.com \
 logging.googleapis.com \
+iam.googleapis.com \
 )"
 ```
 
-4. **Configure Docker Authentication**
+4. **Configure Cloud Build Service Account Permissions**
+```bash
+# Get your project number
+# Get your project number
+PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')
+
+# Configure both service accounts with required roles
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+    --role="roles/run.admin" \
+    --role="roles/iam.serviceAccountUser" \
+    --role="roles/iam.serviceAccountTokenCreator" \
+    --role="roles/run.serviceAgent" \
+    --role="roles/run.invoker"
+
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+    --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+    --role="roles/run.admin" \
+    --role="roles/run.serviceAgent" \
+    --role="roles/run.invoker"
+
+# Verify role assignments
+gcloud projects get-iam-policy $(gcloud config get-value project) \
+    --flatten="bindings[].members" \
+    --filter="bindings.members:(@cloudbuild.gserviceaccount.com OR @developer.gserviceaccount.com)"
+```
+
+5. **Configure Docker Authentication**
 ```bash
 gcloud auth configure-docker
 ```
@@ -196,6 +225,25 @@ _MAX_INSTANCES=5
 ```
 
 ## Authentication Setup
+
+### Cloud Build Service Account Permissions
+
+The Cloud Build service account requires specific IAM roles to deploy and configure Cloud Run services:
+
+| Role | Purpose | Role Name |
+|------|---------|-----------|
+| Cloud Run Admin | Allows deployment and management of Cloud Run services | `roles/run.admin` |
+| Service Account User | Allows Cloud Build to act as service accounts | `roles/iam.serviceAccountUser` |
+| Service Account Token Creator | Allows creation of authentication tokens | `roles/iam.serviceAccountTokenCreator` |
+
+If you encounter permissions errors during deployment, verify these roles:
+
+```bash
+# List current IAM policies
+gcloud projects get-iam-policy $(gcloud config get-value project) \
+    --flatten="bindings[].members" \
+    --filter="bindings.members:@cloudbuild.gserviceaccount.com"
+```
 
 ### Configuring Application Authentication
 
@@ -286,15 +334,23 @@ gcloud builds list
 ### Common Issues and Solutions
 
 1. **Permission Issues**
+- Verify Cloud Build service account roles:
 ```bash
-# Grant necessary roles
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member=user:your-email@example.com \
-  --role=roles/run.admin
+# Get your project number
+PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')
 
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member=user:your-email@example.com \
-  --role=roles/cloudbuild.builds.editor
+# Re-grant necessary permissions
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+    --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+    --role="roles/iam.serviceAccountUser"
+
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
+    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+    --role="roles/iam.serviceAccountTokenCreator"
 ```
 
 2. **Container Startup Issues**

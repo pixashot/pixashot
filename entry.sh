@@ -9,6 +9,12 @@ KEEP_ALIVE="${KEEP_ALIVE:-300}"
 PORT="${PORT:-8080}"
 MAX_REQUESTS="${MAX_REQUESTS:-1000}"
 
+# Create Xvfb socket directory if it doesn't exist
+XVFB_DIR="/tmp/.X11-unix"
+if [ ! -d "$XVFB_DIR" ]; then
+    mkdir -p "$XVFB_DIR"
+fi
+
 # Start Xvfb
 Xvfb :99 -screen 0 1280x1024x24 &
 export DISPLAY=:99
@@ -23,7 +29,7 @@ export PYTHONPATH=/app
 export PYTHONUNBUFFERED=1
 
 # Use hypercorn to run the application
-exec hypercorn "app:app" \
+exec hypercorn app:app \
     --bind "0.0.0.0:$PORT" \
     --workers "$WORKERS" \
     --keep-alive "$KEEP_ALIVE" \

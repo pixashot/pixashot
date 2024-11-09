@@ -5,7 +5,9 @@ FROM mcr.microsoft.com/playwright/python:v1.35.0-focal
 ENV PORT=8080 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_ROOT_USER_ACTION=ignore
 
 # Set the working directory
 WORKDIR /app
@@ -16,23 +18,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install requirements
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Create a non-root user with the next available UID
+RUN useradd -m appuser && \
+    mkdir -p /tmp/screenshots /app/data /app/logs && \
+    chown -R appuser:appuser /app /tmp/screenshots /app/data /app/logs
+
+# Update pip and install requirements as non-root user
+COPY --chown=appuser:appuser requirements.txt .
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright browser
 RUN playwright install --with-deps chromium
 
 # Copy application code
-COPY src/ /app
-COPY entry.sh .
+COPY --chown=appuser:appuser src/ /app
+COPY --chown=appuser:appuser entry.sh .
 
 # Prepare the entry script
 RUN chmod +x entry.sh
 
-# Create required directories
-RUN mkdir -p /tmp/screenshots /app/data /app/logs \
-    && chmod 777 /tmp/screenshots /app/data /app/logs
+# Switch to non-root user
+USER appuser
 
 # Expose the port
 EXPOSE ${PORT}
