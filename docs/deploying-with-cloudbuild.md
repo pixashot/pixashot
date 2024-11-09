@@ -153,15 +153,16 @@ The project includes a `cloudbuild.yaml` file ([view file](../cloudbuild.yaml)) 
 | Port | Container port | 8080 | 3000, 8000 |
 | Timeout | Request timeout (seconds) | 300 | 600, 900 |
 
-### Basic Deployment
+# Deployment Examples
 
-Deploy with default settings and required Cloud Run configuration:
+## Basic Deployment
+
+Deploy with default settings:
 ```bash
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=_CLOUDBUILD_ENV_VARS="CLOUD_RUN=true"
+gcloud builds submit --config cloudbuild.yaml
 ```
 
-### Custom Deployment
+## Custom Deployment
 
 Override default settings:
 ```bash
@@ -172,11 +173,10 @@ _SERVICE_NAME=my-pixashot,\
 _MEMORY=2Gi,\
 _CPU=2,\
 _MIN_INSTANCES=1,\
-_MAX_INSTANCES=5,\
-_CLOUDBUILD_ENV_VARS="CLOUD_RUN=true"
+_MAX_INSTANCES=5
 ```
 
-### Environment-Specific Deployment
+## Environment-Specific Deployment
 
 For different environments:
 
@@ -187,7 +187,7 @@ gcloud builds submit --config cloudbuild.yaml \
 _SERVICE_NAME=pixashot-dev,\
 _MEMORY=512Mi,\
 _MIN_INSTANCES=0,\
-_CLOUDBUILD_ENV_VARS="CLOUD_RUN=true"
+_ENV_VARS="CLOUD_RUN=true,DEBUG=true,ENVIRONMENT=development"
 
 # Production
 gcloud builds submit --config cloudbuild.yaml \
@@ -195,12 +195,50 @@ gcloud builds submit --config cloudbuild.yaml \
 _SERVICE_NAME=pixashot-prod,\
 _MEMORY=2Gi,\
 _MIN_INSTANCES=1,\
-_CLOUDBUILD_ENV_VARS="CLOUD_RUN=true"
+_ENV_VARS="CLOUD_RUN=true,DEBUG=false,ENVIRONMENT=production"
 ```
 
-### Important Note
+## Setting Additional Environment Variables
 
-The `CLOUD_RUN` environment variable should be set to `true` when deploying to Cloud Run. This ensures proper container initialization and user permissions handling. The examples above include this setting through the `_CLOUDBUILD_ENV_VARS` substitution.
+You can set multiple environment variables using the `_ENV_VARS` substitution:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_ENV_VARS="CLOUD_RUN=true,AUTH_TOKEN=secret123,RATE_LIMIT_ENABLED=true"
+```
+
+## Default Configuration
+
+The following default values are set in the cloudbuild.yaml:
+
+```yaml
+_REGION: us-central1
+_SERVICE_NAME: pixashot
+_REPOSITORY: pixashot-repo
+_TAG: latest
+_MIN_INSTANCES: "0"
+_MAX_INSTANCES: "10"
+_MEMORY: "2Gi"
+_CPU: "1"
+_PORT: "8080"
+_TIMEOUT: "300"
+_ENV_VARS: "CLOUD_RUN=true"
+```
+
+You only need to specify values in your `--substitutions` flag if you want to override these defaults.
+
+## Important Notes
+
+1. The `CLOUD_RUN=true` environment variable is set by default in the configuration, ensuring proper container initialization and user permissions handling.
+
+2. When setting multiple environment variables, use commas to separate them in the `_ENV_VARS` substitution:
+   ```bash
+   _ENV_VARS="VAR1=value1,VAR2=value2,VAR3=value3"
+   ```
+
+3. Values in `--substitutions` will override the defaults in cloudbuild.yaml.
+
+4. Remember to use quotes around substitution values that contain special characters or spaces.
 
 ## Post-Deployment Configuration
 

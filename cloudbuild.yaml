@@ -5,10 +5,11 @@
 # $_TAG: Docker image tag (defaults to latest)
 # $_MIN_INSTANCES: Minimum number of instances (defaults to 0)
 # $_MAX_INSTANCES: Maximum number of instances (defaults to 10)
-# $_MEMORY: Memory allocation (defaults to 1Gi)
+# $_MEMORY: Memory allocation (defaults to 2Gi)
 # $_CPU: CPU allocation (defaults to 1)
 # $_PORT: Container port (defaults to 8080)
 # $_TIMEOUT: Request timeout in seconds (defaults to 300)
+# $_ENV_VARS: Environment variables to set in Cloud Run (comma-separated key=value pairs)
 
 steps:
   # Build the Docker image
@@ -52,7 +53,7 @@ steps:
       - '--timeout'
       - '${_TIMEOUT}'
       - '--set-env-vars'
-      - 'CLOUD_RUN=true'
+      - '${_ENV_VARS}'
       - '--allow-unauthenticated'
 
 substitutions:
@@ -66,6 +67,7 @@ substitutions:
   _CPU: "1"
   _PORT: "8080"
   _TIMEOUT: "300"
+  _ENV_VARS: "CLOUD_RUN=true"
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${_TAG}'
