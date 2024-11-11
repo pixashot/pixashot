@@ -12,13 +12,19 @@ logger = logging.getLogger(__name__)
 
 
 class CaptureService:
-    def __init__(self, playwright=None):
-        self.context_manager = ContextManager(playwright)
+    def __init__(self):
+        self.context_manager = None
         self.browser_controller = MainBrowserController()
 
     async def initialize(self, playwright):
-        self.context_manager = ContextManager(playwright)
-        await self.context_manager.initialize(playwright)
+        """Initialize the capture service with a Playwright instance."""
+        try:
+            self.context_manager = ContextManager(playwright=playwright)
+            await self.context_manager.initialize(playwright)
+            logger.info("Capture service initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize capture service: {str(e)}")
+            raise
 
     @retry(
         stop=stop_after_attempt(3),
@@ -27,6 +33,9 @@ class CaptureService:
         after=after_log(logger, logging.ERROR)
     )
     async def capture_screenshot(self, output_path, options):
+        if not self.context_manager:
+            raise ScreenshotServiceException("Capture service not initialized")
+
         context = await self.context_manager.get_context(options)
         page = await context.new_page()
 
