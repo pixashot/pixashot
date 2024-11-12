@@ -14,87 +14,142 @@ from quart import (
     current_app,
     make_response,
     request,
-    send_file,
+    send_file, jsonify,
 )
 
 from cache_manager import cache_response
 from capture_request import CaptureRequest
 from exceptions import ScreenshotServiceException
 
+logger = logging.getLogger(__name__)
+
 
 def register_routes(app):
     @app.route('/capture', methods=['POST', 'GET'])
     async def capture():
+        """
+        Handle screenshot capture requests with Cloud Run compatible error handling.
+        """
         try:
+            # Parse request parameters
             if request.method == 'POST':
-                options = CaptureRequest(**(await request.json))
+                request_json = await request.get_json()
+                options = CaptureRequest(**request_json)
             elif request.method == 'GET':
                 query_params = parse_qs(urlparse(request.url).query)
                 options = CaptureRequest(**{k: v[0] for k, v in query_params.items()})
             else:
-                abort(400)
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Only POST and GET methods are supported'
+                }), 400
 
             capture_service = current_app.config['container'].capture_service
 
+            # Handle HTML format separately
             if options.format == 'html':
                 html_content = await capture_service.capture_screenshot(None, options)
                 if options.response_type == 'json':
-                    return {'html': base64.b64encode(html_content.encode()).decode('utf-8')}, 200
+                    return jsonify({
+                        'file': base64.b64encode(html_content.encode()).decode('utf-8'),
+                        'format': 'html'
+                    }), 200
                 else:
                     response = await make_response(html_content)
                     response.headers['Content-Type'] = 'text/html'
                     return response
+
+            # Generate unique output filename
+            if options.url:
+                hostname = urlparse(str(options.url)).hostname.replace('.', '-')
             else:
-                if options.url:
-                    hostname = urlparse(str(options.url)).hostname.replace('.', '-')
-                else:
-                    hostname = 'html-content'
+                hostname = 'html-content'
 
-                output_path = f"{tempfile.gettempdir()}/{hostname}_{int(time.time())}_{int(random.random() * 10000)}.{options.format}"
+            timestamp = int(time.time())
+            random_suffix = int(random.random() * 10000)
+            output_path = f"{tempfile.gettempdir()}/{hostname}_{timestamp}_{random_suffix}.{options.format}"
 
+            # Capture the screenshot
+            try:
                 await capture_service.capture_screenshot(output_path, options)
+            except Exception as capture_error:
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                raise capture_error
 
+            # Handle different response types
+            try:
                 if options.response_type == 'empty':
                     os.remove(output_path)
                     return '', 204
+
                 elif options.response_type == 'json':
                     with open(output_path, 'rb') as f:
                         file_data = f.read()
                     os.remove(output_path)
-                    return {'file': base64.b64encode(file_data).decode('utf-8')}, 200
+                    return jsonify({
+                        'file': base64.b64encode(file_data).decode('utf-8'),
+                        'format': options.format
+                    }), 200
+
                 else:  # by_format
                     mime_type = 'application/pdf' if options.format == 'pdf' else f'image/{options.format}'
                     with open(output_path, 'rb') as f:
                         file_data = f.read()
                     os.remove(output_path)
-                    return await send_file(
-                        BytesIO(file_data),
-                        mimetype=mime_type,
-                        as_attachment=True,
-                        attachment_filename=f"screenshot.{options.format}"
-                    )
+
+                    response = await make_response(file_data)
+                    response.headers['Content-Type'] = mime_type
+                    response.headers['Content-Disposition'] = f'attachment; filename=screenshot.{options.format}'
+                    return response
+
+            except Exception as e:
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                raise e
 
         except ValueError as e:
-            current_app.logger.error(f"Invalid request parameters: {str(e)}")
-            return {'status': 'error', 'message': str(e)}, 400
+            logger.error(f"Invalid request parameters: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': str(e),
+                'error_type': 'ValidationError'
+            }), 400
+
         except Exception as e:
-            current_app.logger.exception("Unexpected error occurred")
+            logger.exception("Error during capture")
+
+            error_response = {
+                'status': 'error',
+                'message': 'An unexpected error occurred while capturing.',
+                'timestamp': datetime.utcnow().isoformat()
+            }
 
             if isinstance(e, ScreenshotServiceException) and isinstance(e.args[0], dict):
-                error_response = {
-                    'status': 'error',
-                    'message': e.args[0]['message'],
-                    'error_type': e.args[0]['type'],
-                    'retry_attempts': e.args[0]['retry_attempts']
-                }
+                error_details = e.args[0]
+                error_response.update({
+                    'error_type': error_details.get('type', 'Unknown'),
+                    'error_details': error_details.get('message', str(e)),
+                    'retry_attempts': [
+                        {
+                            'attempt': attempt.get('attempt'),
+                            'error': attempt.get('error'),
+                            'error_type': attempt.get('error_type'),
+                            'timestamp': attempt.get('timestamp')
+                        }
+                        for attempt in error_details.get('retry_attempts', [])
+                    ],
+                    'call_stack': error_details.get('call_stack')
+                })
             else:
-                error_response = {
-                    'status': 'error',
-                    'message': 'An unexpected error occurred while capturing.',
-                    'error_details': str(e)
-                }
+                error_response.update({
+                    'error_type': e.__class__.__name__,
+                    'error_details': str(e),
+                    'call_stack': getattr(e, 'message', str(e))
+                })
 
-            return error_response, 500
+            # Ensure we're returning a proper JSON response
+            return jsonify(error_response), 500
 
     @app.route('/health')
     @app.route('/health/ready')

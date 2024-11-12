@@ -50,34 +50,52 @@ class CaptureService:
                 await self._prepare_page(page, options)
                 await self._perform_interactions(page, options)
                 await self._perform_capture(page, output_path, options)
+            except TimeoutError as timeout_err:
+                # Get retry information before re-raising
+                retry_state = getattr(self.capture_screenshot, 'retry_state', None)
+                attempts = []
+                if retry_state and hasattr(retry_state, 'retry_tracker'):
+                    attempts = retry_state.retry_tracker.get_attempts()
+
+                error_details = {
+                    "message": str(timeout_err),
+                    "type": "TimeoutException",
+                    "retry_attempts": attempts,
+                    "call_stack": timeout_err.message if hasattr(timeout_err, 'message') else str(timeout_err)
+                }
+                raise TimeoutException(error_details)
             finally:
                 await page.close()
 
         except TimeoutError as e:
-            # Get retry information before raising
+            # Capture retry information
             retry_state = getattr(self.capture_screenshot, 'retry_state', None)
+            attempts = []
             if retry_state and hasattr(retry_state, 'retry_tracker'):
                 attempts = retry_state.retry_tracker.get_attempts()
-                error_details = {
-                    "message": str(e),
-                    "type": "TimeoutException",
-                    "retry_attempts": attempts
-                }
-                raise TimeoutException(error_details)
-            raise TimeoutException(str(e))
+
+            error_details = {
+                "message": str(e),
+                "type": "TimeoutException",
+                "retry_attempts": attempts,
+                "call_stack": e.message if hasattr(e, 'message') else str(e)
+            }
+            raise TimeoutException(error_details)
 
         except Exception as e:
-            # Get retry information before raising
+            # Get retry information for other exceptions
             retry_state = getattr(self.capture_screenshot, 'retry_state', None)
+            attempts = []
             if retry_state and hasattr(retry_state, 'retry_tracker'):
                 attempts = retry_state.retry_tracker.get_attempts()
-                error_details = {
-                    "message": str(e),
-                    "type": e.__class__.__name__,
-                    "retry_attempts": attempts
-                }
-                raise ScreenshotServiceException(error_details)
-            raise ScreenshotServiceException(str(e))
+
+            error_details = {
+                "message": str(e),
+                "type": e.__class__.__name__,
+                "retry_attempts": attempts,
+                "call_stack": getattr(e, 'message', str(e))
+            }
+            raise ScreenshotServiceException(error_details)
 
     async def _configure_page(self, page: Page, options):
         await page.set_viewport_size({"width": options.window_width, "height": options.window_height})
