@@ -14,6 +14,8 @@
 # $_BROWSER_CONTEXT_TIMEOUT: Timeout for browser contexts in seconds
 # $_BROWSER_MEMORY_LIMIT_MB: Memory limit in MB before context cleanup
 # $_AUTH_TOKEN: Authentication token for the service
+# $_MAX_REQUESTS_PER_WORKER: Maximum requests per worker before restart (defaults to 50)
+# $_WORKERS: Number of worker processes per instance (defaults to 4)
 
 steps:
   # Build the Docker image
@@ -57,7 +59,7 @@ steps:
       - '--timeout'
       - '${_TIMEOUT}'
       - '--set-env-vars'
-      - 'CLOUD_RUN=true,BROWSER_MAX_CONTEXTS=${_BROWSER_MAX_CONTEXTS},BROWSER_CONTEXT_TIMEOUT=${_BROWSER_CONTEXT_TIMEOUT},BROWSER_MEMORY_LIMIT_MB=${_BROWSER_MEMORY_LIMIT_MB},AUTH_TOKEN=${_AUTH_TOKEN}'
+      - 'CLOUD_RUN=true,BROWSER_MAX_CONTEXTS=${_BROWSER_MAX_CONTEXTS},BROWSER_CONTEXT_TIMEOUT=${_BROWSER_CONTEXT_TIMEOUT},BROWSER_MEMORY_LIMIT_MB=${_BROWSER_MEMORY_LIMIT_MB},AUTH_TOKEN=${_AUTH_TOKEN},MAX_REQUESTS=${_MAX_REQUESTS_PER_WORKER},WORKERS=${_WORKERS}'
       - '--allow-unauthenticated'
 
   # Add IAM policy binding to allow unauthenticated access
@@ -85,6 +87,8 @@ substitutions:
   _BROWSER_MAX_CONTEXTS: "15"
   _BROWSER_CONTEXT_TIMEOUT: "300"
   _BROWSER_MEMORY_LIMIT_MB: "1500"
+  _MAX_REQUESTS_PER_WORKER: "50"
+  _WORKERS: "2"
   _AUTH_TOKEN: ""
 
 images:

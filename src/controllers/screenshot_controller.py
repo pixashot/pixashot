@@ -1,5 +1,5 @@
+from playwright.async_api import Page, TimeoutError
 import logging
-from playwright.async_api import Page, Error as PlaywrightError, TimeoutError
 from exceptions import BrowserException, TimeoutException
 from controllers.base_controller import BaseBrowserController
 
@@ -10,121 +10,116 @@ class ScreenshotController(BaseBrowserController):
     MAX_VIEWPORT_HEIGHT = 16384
     NETWORK_IDLE_TIMEOUT_MS = 5000
     SCROLL_PAUSE_MS = 500
-    SCREENSHOT_TIMEOUT_MS = 10000  # Default screenshot timeout
+    SCREENSHOT_TIMEOUT_MS = 10000
 
-    async def _take_screenshot_with_fallback(self, screenshot_func, *args, **kwargs):
-        """
-        Attempt to take a screenshot with timeout handling.
-        If timeout occurs, attempts to take a basic screenshot of current state.
-        """
+    async def take_screenshot(self, page: Page, options: dict) -> bytes:
+        """Take a screenshot with graceful timeout handling."""
+        screenshot_options = {
+            'path': options.get('path'),
+            'full_page': options.get('full_page', False),
+            'type': options.get('format', 'png'),
+            'quality': options.get('quality') if options.get('format') != 'png' else None,
+            'omit_background': options.get('omit_background', False),
+            'timeout': self.SCREENSHOT_TIMEOUT_MS
+        }
+
         try:
-            return await screenshot_func(*args, **kwargs)
+            # First attempt with all options
+            return await self._take_screenshot_with_retry(page, screenshot_options)
         except TimeoutError as e:
-            logger.warning(f"Screenshot timeout occurred: {str(e)}. Attempting fallback capture...")
+            logger.warning(f"Initial screenshot attempt timed out: {str(e)}. Attempting fallback capture...")
 
-            # Remove timeout for fallback attempt
-            if 'timeout' in kwargs:
-                del kwargs['timeout']
+            # Remove timeout and try again with minimal options
+            fallback_options = screenshot_options.copy()
+            fallback_options.pop('timeout', None)  # Remove timeout
 
             try:
-                # Attempt basic screenshot without waiting for additional resources
-                return await screenshot_func(*args, **kwargs)
+                # Attempt fallback screenshot with minimal waiting
+                return await self._take_fallback_screenshot(page, fallback_options)
             except Exception as fallback_error:
                 logger.error(f"Fallback screenshot also failed: {str(fallback_error)}")
                 raise BrowserException(f"Both primary and fallback screenshot attempts failed: {str(fallback_error)}")
 
-    async def prepare_for_full_page_screenshot(self, page: Page, window_width: int):
-        """Prepare page for full-page screenshot with enhanced error handling and timeout recovery."""
+    async def _take_screenshot_with_retry(self, page: Page, options: dict) -> bytes:
+        """Attempt to take a screenshot with retry logic."""
         try:
-            # Scroll to bottom and wait for any dynamic content to load
+            if options.get('selector'):
+                element = await page.query_selector(options['selector'])
+                if element:
+                    return await element.screenshot(**options)
+                else:
+                    logger.warning(f"Selector '{options['selector']}' not found. Falling back to full page.")
+
+            return await page.screenshot(**options)
+        except TimeoutError as e:
+            raise e
+        except Exception as e:
+            logger.error(f"Error during screenshot capture: {str(e)}")
+            raise
+
+    async def _take_fallback_screenshot(self, page: Page, options: dict) -> bytes:
+        """Take a fallback screenshot with minimal options."""
+        try:
+            # Remove potentially problematic options
+            minimal_options = {
+                'path': options.get('path'),
+                'type': options.get('format', 'png'),
+                'full_page': options.get('full_page', False)
+            }
+
+            # Try to stabilize the page state
+            try:
+                await page.evaluate('window.stop()')  # Stop any ongoing resource loading
+            except Exception as e:
+                logger.warning(f"Failed to stop page loading: {str(e)}")
+
+            return await page.screenshot(**minimal_options)
+        except Exception as e:
+            logger.error(f"Fallback screenshot failed: {str(e)}")
+            raise
+
+    async def prepare_for_full_page_screenshot(self, page: Page, window_width: int):
+        """Prepare page for full-page screenshot with improved timeout handling."""
+        try:
+            # Scroll to bottom with reduced timeout
             try:
                 await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-            except PlaywrightError as e:
-                logger.warning(f"Scroll failed: {str(e)}. Continuing with capture...")
+            except Exception as e:
+                logger.warning(f"Initial scroll failed: {str(e)}. Continuing with capture...")
 
-            # Try network idle wait, but don't fail if it times out
+            # Try network idle wait with short timeout
             try:
-                await page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)
+                await page.wait_for_load_state('networkidle', timeout=1000)
             except TimeoutError:
                 logger.warning("Network idle timeout reached, continuing with capture")
 
-            # Get the full height with error handling
+            # Get page height with fallback
             try:
                 full_height = await page.evaluate('document.body.scrollHeight')
                 if not isinstance(full_height, (int, float)) or full_height <= 0:
-                    logger.warning(f"Invalid page height detected: {full_height}. Using default height.")
                     full_height = self.MAX_VIEWPORT_HEIGHT
-            except PlaywrightError as e:
-                logger.warning(f"Failed to determine page height: {str(e)}. Using default height.")
+            except Exception:
                 full_height = self.MAX_VIEWPORT_HEIGHT
+                logger.warning(f"Failed to get page height, using maximum: {self.MAX_VIEWPORT_HEIGHT}")
 
             # Enforce maximum height limit
             full_height = min(full_height, self.MAX_VIEWPORT_HEIGHT)
 
-            await self._set_viewport_and_scroll(page, window_width, full_height)
-
-        except Exception as e:
-            logger.error(f"Error in prepare_for_full_page_screenshot: {str(e)}")
-            logger.warning("Continuing with capture despite preparation errors...")
-
-    async def _set_viewport_and_scroll(self, page: Page, width: int, height: int):
-        """Set viewport size and handle scrolling with fallback handling."""
-        try:
-            # Validate and adjust dimensions if needed
-            width = max(1, min(width, 16384))  # Reasonable limits
-            height = max(1, min(height, self.MAX_VIEWPORT_HEIGHT))
-
             # Set viewport size
             try:
-                await page.set_viewport_size({'width': width, 'height': height})
-            except PlaywrightError as e:
-                logger.warning(f"Viewport size adjustment failed: {str(e)}. Using default viewport.")
+                await page.set_viewport_size({'width': window_width, 'height': full_height})
+            except Exception as e:
+                logger.warning(f"Viewport size adjustment failed: {str(e)}")
 
-            # Try network idle wait, but continue if it times out
-            try:
-                await page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)
-            except TimeoutError:
-                logger.warning("Network idle timeout during viewport setup, continuing...")
-
-            # Scroll back to top
+            # Final scroll to top
             try:
                 await page.evaluate('window.scrollTo(0, 0)')
-            except PlaywrightError as e:
-                logger.warning(f"Scroll to top failed: {str(e)}. Continuing with capture.")
+            except Exception as e:
+                logger.warning(f"Final scroll failed: {str(e)}")
 
             # Brief pause to let the page settle
             await page.wait_for_timeout(self.SCROLL_PAUSE_MS)
 
         except Exception as e:
-            logger.error(f"Error in viewport setup: {str(e)}")
-            logger.warning("Continuing with capture despite viewport setup issues...")
-
-    async def take_screenshot(self, page: Page, options: dict):
-        """Take a screenshot with timeout handling and fallback options."""
-        screenshot_options = {
-            'path': options.get('path'),
-            'full_page': options.get('full_page', False),
-            'type': options.get('format', 'png'),
-            'quality': options.get('quality'),
-            'omit_background': options.get('omit_background', False),
-            'timeout': self.SCREENSHOT_TIMEOUT_MS
-        }
-
-        if options.get('selector'):
-            try:
-                element = await page.query_selector(options['selector'])
-                if element:
-                    return await self._take_screenshot_with_fallback(
-                        element.screenshot,
-                        **screenshot_options
-                    )
-                else:
-                    logger.warning(f"Selector '{options['selector']}' not found. Capturing full page instead.")
-            except Exception as e:
-                logger.warning(f"Element screenshot failed: {str(e)}. Falling back to full page.")
-
-        # If element screenshot fails or no selector specified, take full page screenshot
-        return await self._take_screenshot_with_fallback(
-            page.screenshot,
-            **screenshot_options
-        )
+            logger.error(f"Error in prepare_for_full_page_screenshot: {str(e)}")
+            logger.warning("Continuing with capture despite preparation errors...")

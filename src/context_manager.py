@@ -166,7 +166,7 @@ class ContextManager:
             context = await self.browser.new_context(**context_options)
 
             # Set default timeout to reduce hanging
-            context.set_default_timeout(10000)  # 10 seconds default timeout
+            context.set_default_timeout(90000)  # 90 seconds default timeout
             context.set_default_navigation_timeout(15000)  # 15 seconds navigation timeout
 
             # Apply resource blocking if needed
