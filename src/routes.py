@@ -19,6 +19,7 @@ from quart import (
 
 from cache_manager import cache_response
 from capture_request import CaptureRequest
+from exceptions import ScreenshotServiceException
 
 
 def register_routes(app):
@@ -30,6 +31,8 @@ def register_routes(app):
             elif request.method == 'GET':
                 query_params = parse_qs(urlparse(request.url).query)
                 options = CaptureRequest(**{k: v[0] for k, v in query_params.items()})
+            else:
+                abort(400)
 
             capture_service = current_app.config['container'].capture_service
 
@@ -76,8 +79,22 @@ def register_routes(app):
             return {'status': 'error', 'message': str(e)}, 400
         except Exception as e:
             current_app.logger.exception("Unexpected error occurred")
-            return {'status': 'error', 'message': 'An unexpected error occurred while capturing.',
-                    'errorDetails': str(e)}, 500
+
+            if isinstance(e, ScreenshotServiceException) and isinstance(e.args[0], dict):
+                error_response = {
+                    'status': 'error',
+                    'message': e.args[0]['message'],
+                    'error_type': e.args[0]['type'],
+                    'retry_attempts': e.args[0]['retry_attempts']
+                }
+            else:
+                error_response = {
+                    'status': 'error',
+                    'message': 'An unexpected error occurred while capturing.',
+                    'error_details': str(e)
+                }
+
+            return error_response, 500
 
     @app.route('/health')
     @app.route('/health/ready')

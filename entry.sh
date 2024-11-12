@@ -15,8 +15,8 @@ if [ ! -d "$XVFB_DIR" ]; then
     mkdir -p "$XVFB_DIR"
 fi
 
-# Start Xvfb
-Xvfb :99 -screen 0 1280x1024x24 &
+# Start Xvfb with suppressed warnings
+Xvfb :99 -screen 0 1280x1024x24 2>/dev/null &
 export DISPLAY=:99
 
 # Wait for Xvfb to be ready

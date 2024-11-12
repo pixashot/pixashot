@@ -1,12 +1,14 @@
 import asyncio
 import logging
-from playwright.async_api import Page
+import time
+from playwright.async_api import Page, TimeoutError
 from context_manager import ContextManager
 from controllers.main_controller import MainBrowserController
-from exceptions import ScreenshotServiceException
+from exceptions import ScreenshotServiceException, TimeoutException
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from tenacity.after import after_log
 import ua_generator
+from retry_tracker import before_retry
 
 logger = logging.getLogger(__name__)
 
@@ -29,21 +31,53 @@ class CaptureService:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type(Exception),
-        after=after_log(logger, logging.ERROR)
+        retry=retry_if_exception_type((TimeoutError, TimeoutException)),
+        after=after_log(logger, logging.ERROR),
+        before=before_retry,
+        reraise=True
     )
     async def capture_screenshot(self, output_path, options):
-        if not self.context_manager:
-            raise ScreenshotServiceException("Capture service not initialized")
+        try:
+            if not self.context_manager:
+                raise ScreenshotServiceException("Capture service not initialized")
 
-        context = await self.context_manager.get_context(options)
-        page = await context.new_page()
+            context = await self.context_manager.get_context(options)
+            page = await context.new_page()
 
-        await self._configure_page(page, options)
-        await self._load_content(page, options)
-        await self._prepare_page(page, options)
-        await self._perform_interactions(page, options)
-        await self._perform_capture(page, output_path, options)
+            try:
+                await self._configure_page(page, options)
+                await self._load_content(page, options)
+                await self._prepare_page(page, options)
+                await self._perform_interactions(page, options)
+                await self._perform_capture(page, output_path, options)
+            finally:
+                await page.close()
+
+        except TimeoutError as e:
+            # Get retry information before raising
+            retry_state = getattr(self.capture_screenshot, 'retry_state', None)
+            if retry_state and hasattr(retry_state, 'retry_tracker'):
+                attempts = retry_state.retry_tracker.get_attempts()
+                error_details = {
+                    "message": str(e),
+                    "type": "TimeoutException",
+                    "retry_attempts": attempts
+                }
+                raise TimeoutException(error_details)
+            raise TimeoutException(str(e))
+
+        except Exception as e:
+            # Get retry information before raising
+            retry_state = getattr(self.capture_screenshot, 'retry_state', None)
+            if retry_state and hasattr(retry_state, 'retry_tracker'):
+                attempts = retry_state.retry_tracker.get_attempts()
+                error_details = {
+                    "message": str(e),
+                    "type": e.__class__.__name__,
+                    "retry_attempts": attempts
+                }
+                raise ScreenshotServiceException(error_details)
+            raise ScreenshotServiceException(str(e))
 
     async def _configure_page(self, page: Page, options):
         await page.set_viewport_size({"width": options.window_width, "height": options.window_height})
