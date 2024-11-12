@@ -7,19 +7,22 @@ logger = logging.getLogger(__name__)
 
 
 class ScreenshotController(BaseBrowserController):
-    MAX_VIEWPORT_HEIGHT = 16384
-    NETWORK_IDLE_TIMEOUT_MS = 1000
-    SCROLL_PAUSE_MS = 500
-    NETWORK_IDLE_TIMEOUT_MS = 500
-    SCROLL_PAUSE_MS = 100
+    MAX_VIEWPORT_HEIGHT = 16384  # Max height for full-page screenshots
+    NETWORK_IDLE_TIMEOUT_MS = 5000  # Increased from 500ms to 5000ms
+    SCROLL_PAUSE_MS = 500  # Increased scroll pause time
 
     async def prepare_for_full_page_screenshot(self, page: Page, window_width: int):
         try:
+            # Scroll to bottom and wait for any dynamic content to load
             await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
             await page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)
+
+            # Get the full height
             full_height = await page.evaluate('document.body.scrollHeight')
             if full_height > self.MAX_VIEWPORT_HEIGHT:
                 full_height = self.MAX_VIEWPORT_HEIGHT
+                logger.warning(
+                    f"Page height exceeds maximum ({full_height}px > {self.MAX_VIEWPORT_HEIGHT}px). Truncating.")
 
             await self._set_viewport_and_scroll(page, window_width, full_height)
         except Exception as e:
@@ -35,11 +38,18 @@ class ScreenshotController(BaseBrowserController):
 
     async def _set_viewport_and_scroll(self, page: Page, width: int, height: int):
         try:
+            # Set viewport size
             await page.set_viewport_size({'width': width, 'height': height})
+
             # Only wait for network idle if we're not already waiting elsewhere
             if not getattr(page, '_waited_for_network', False):
-                await page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)
-                setattr(page, '_waited_for_network', True)
+                try:
+                    await page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)
+                    setattr(page, '_waited_for_network', True)
+                except Exception as e:
+                    logger.warning(f"Network idle timeout, continuing anyway: {str(e)}")
+
+            # Scroll back to top and pause to let the page settle
             await page.evaluate('window.scrollTo(0, 0)')
             await page.wait_for_timeout(self.SCROLL_PAUSE_MS)
         except Exception as e:

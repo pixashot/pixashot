@@ -151,15 +151,19 @@ class ContextManager:
     async def _create_context(self, options) -> BrowserContext:
         """Create a new browser context with optimized settings."""
         try:
-            context = await self.browser.new_context(
-                ignore_https_errors=options.ignore_https_errors,
-                viewport={'width': options.window_width, 'height': options.window_height},
-                device_scale_factor=options.pixel_density,
-                hardware_acceleration="disable",  # Disable hardware acceleration for better stability
-                java_script_enabled=True,  # Explicitly enable JavaScript
-                bypass_csp=True,  # Bypass Content Security Policy for better compatibility
-                proxy=self._get_proxy_config(options)
-            )
+            context_options = {
+                'ignore_https_errors': options.ignore_https_errors,
+                'viewport': {'width': options.window_width, 'height': options.window_height},
+                'device_scale_factor': options.pixel_density,
+                'bypass_csp': True,  # Bypass Content Security Policy for better compatibility
+            }
+
+            # Add proxy configuration if specified
+            proxy_config = self._get_proxy_config(options)
+            if proxy_config:
+                context_options['proxy'] = proxy_config
+
+            context = await self.browser.new_context(**context_options)
 
             # Set default timeout to reduce hanging
             context.set_default_timeout(10000)  # 10 seconds default timeout
@@ -297,3 +301,15 @@ class ContextManager:
         except Exception as e:
             logger.error(f"Error getting stats: {str(e)}")
             return {}
+
+    async def _apply_extension(self, context: BrowserContext, extension_name: str):
+        """Apply a browser extension to the context."""
+        try:
+            extension_path = os.path.join(self.extension_dir, extension_name)
+            if os.path.exists(extension_path):
+                # Implementation would depend on how extensions are handled
+                pass
+            else:
+                logger.warning(f"Extension {extension_name} not found at {extension_path}")
+        except Exception as e:
+            logger.error(f"Error applying extension {extension_name}: {str(e)}")
