@@ -19,7 +19,8 @@ class ContextManager:
             playwright=None,
             extension_dir: Optional[str] = None,
             cleanup_interval: int = 60,
-            max_context_uses: int = 100
+            max_context_uses: int = 100,
+            context_check_timeout: float = 5.0
     ):
         self.max_contexts = max_contexts
         self.context_timeout = context_timeout
@@ -27,6 +28,7 @@ class ContextManager:
         self.playwright = playwright
         self.max_context_uses = max_context_uses
         self.cleanup_interval = cleanup_interval
+        self.context_check_timeout = context_check_timeout
 
         # Using OrderedDict for FIFO behavior
         self.contexts: OrderedDict[Tuple, Tuple[BrowserContext, float, int, Browser]] = OrderedDict()
@@ -35,6 +37,7 @@ class ContextManager:
         self.active_contexts: Set[BrowserContext] = set()
         self.context_use_counts: Dict[BrowserContext, int] = {}
         self.context_last_check: Dict[BrowserContext, float] = {}
+        self.context_creation_times: Dict[BrowserContext, float] = {}
 
         # Keep track of the last cleanup time
         self.last_cleanup_time = time.time()
@@ -45,11 +48,30 @@ class ContextManager:
         self.browser: Optional[Browser] = None
         self._cleanup_lock = asyncio.Lock()
         self._browser_lock = asyncio.Lock()
+        self._context_creation_lock = asyncio.Lock()
 
         # Validate extension directory
         if not os.path.exists(self.extension_dir):
             logger.warning(f"Extension directory not found at {self.extension_dir}")
             os.makedirs(self.extension_dir, exist_ok=True)
+
+        # Performance metrics
+        self.total_context_creations = 0
+        self.total_context_reuses = 0
+        self.failed_context_creations = 0
+
+    async def _ensure_browser(self):
+        """Ensure browser is connected, with retries."""
+        for attempt in range(3):
+            try:
+                if not self.browser or not self.browser.is_connected():
+                    await self.initialize(self.playwright)
+                return
+            except Exception as e:
+                if attempt == 2:
+                    raise
+                logger.warning(f"Browser reconnection attempt {attempt + 1} failed: {e}")
+                await asyncio.sleep(1)
 
     async def initialize(self, playwright):
         """Initialize the playwright instance and browser with optimized settings."""
@@ -72,7 +94,10 @@ class ContextManager:
                             '--disable-accelerated-2d-canvas',
                             '--disable-accelerated-video-decode',
                             '--disable-gpu-compositing',
-                            '--disable-gpu-rasterization'
+                            '--disable-gpu-rasterization',
+                            '--disable-extensions-except=@extensions',
+                            '--disable-features=site-per-process,TranslateUI',
+                            '--disable-popup-blocking'
                         ]
                     )
                     logger.info("Browser instance launched successfully with optimized settings")
@@ -81,7 +106,7 @@ class ContextManager:
             raise
 
     async def is_context_valid(self, context: BrowserContext) -> bool:
-        """Check if a context is still valid and usable."""
+        """Check if a context is still valid and usable with timeout."""
         try:
             if context not in self.active_contexts:
                 return False
@@ -91,10 +116,18 @@ class ContextManager:
             if time.time() - last_used > self.context_timeout:
                 return False
 
-            # Verify context is still operational
-            test_page = await context.new_page()
-            await test_page.close()
-            return True
+            # Verify context is still operational with timeout
+            try:
+                test_page = await asyncio.wait_for(
+                    context.new_page(),
+                    timeout=self.context_check_timeout
+                )
+                await test_page.close()
+                return True
+            except asyncio.TimeoutError:
+                logger.warning(f"Context validation timed out after {self.context_check_timeout}s")
+                return False
+
         except PlaywrightError:
             return False
         except Exception as e:
@@ -105,9 +138,7 @@ class ContextManager:
         """Get an existing context or create a new one based on configuration."""
         try:
             await self._check_cleanup()
-
-            if self.playwright is None:
-                self.playwright = await async_playwright().start()
+            await self._ensure_browser()
 
             key = self._get_context_key(options)
             current_time = time.time()
@@ -125,15 +156,23 @@ class ContextManager:
                     self.context_last_check[context] = current_time
                     self.contexts.move_to_end(key)
 
-                    logger.debug(f"Reusing existing context (use count: {use_count})")
+                    self.total_context_reuses += 1
+                    age = current_time - self.context_creation_times.get(context, current_time)
+
+                    logger.debug(
+                        f"Reusing context {id(context)} key={key} "
+                        f"uses={use_count}/{self.max_context_uses} "
+                        f"age={age:.1f}s"
+                    )
                     return context
                 else:
                     # Context is invalid, remove it
-                    logger.info("Found invalid context, removing it")
+                    logger.info(f"Found invalid context {id(context)}, removing it")
                     await self._remove_context(key)
 
             # Create new context if needed
-            return await self._create_new_context(options, key)
+            async with self._context_creation_lock:  # Serialize context creation
+                return await self._create_new_context(options, key)
 
         except Exception as e:
             logger.error(f"Error getting context: {str(e)}")
@@ -143,9 +182,7 @@ class ContextManager:
         """Create a new browser context with optimized settings."""
         try:
             # Check browser connection
-            async with self._browser_lock:
-                if not self.browser or not self.browser.is_connected():
-                    await self.initialize(self.playwright)
+            await self._ensure_browser()
 
             # Check memory before creating new context
             if not self._check_memory_usage():
@@ -157,17 +194,24 @@ class ContextManager:
 
             # Create and configure new context
             context = await self._setup_new_context(options)
+            creation_time = time.time()
 
             # Store the new context
-            self.contexts[key] = (context, time.time(), 1, self.browser)
+            self.contexts[key] = (context, creation_time, 1, self.browser)
             self.active_contexts.add(context)
             self.context_use_counts[context] = 1
-            self.context_last_check[context] = time.time()
+            self.context_last_check[context] = creation_time
+            self.context_creation_times[context] = creation_time
 
-            logger.info(f"Created new context. Active contexts: {len(self.contexts)}")
+            self.total_context_creations += 1
+            logger.info(
+                f"Created new context {id(context)}. "
+                f"Active contexts: {len(self.contexts)}/{self.max_contexts}"
+            )
             return context
 
         except Exception as e:
+            self.failed_context_creations += 1
             logger.error(f"Error creating new context: {str(e)}")
             raise
 
@@ -178,6 +222,9 @@ class ContextManager:
             'viewport': {'width': options.window_width, 'height': options.window_height},
             'device_scale_factor': options.pixel_density,
             'bypass_csp': True,
+            'java_script_enabled': True,
+            'has_touch': False,
+            'is_mobile': False,
         }
 
         if hasattr(options, 'proxy_server') and options.proxy_server:
@@ -203,7 +250,19 @@ class ContextManager:
         except Exception as e:
             logger.warning(f"Failed to apply extensions: {str(e)}")
 
+        # Set up context event handlers
+        context.on("close", lambda: self._handle_context_close(context))
+
         return context
+
+    def _handle_context_close(self, context: BrowserContext):
+        """Handle context close event."""
+        if context in self.active_contexts:
+            self.active_contexts.remove(context)
+            self.context_use_counts.pop(context, None)
+            self.context_last_check.pop(context, None)
+            self.context_creation_times.pop(context, None)
+            logger.debug(f"Context {id(context)} closed")
 
     async def _apply_extension(self, context: BrowserContext, extension_name: str):
         """Apply a browser extension to the context with improved error handling."""
@@ -269,9 +328,10 @@ class ContextManager:
 
                 self.context_use_counts.pop(context, None)
                 self.context_last_check.pop(context, None)
+                self.context_creation_times.pop(context, None)
                 del self.contexts[key]
 
-                logger.info(f"Removed context {key}")
+                logger.info(f"Removed context {id(context)} with key {key}")
         except Exception as e:
             logger.error(f"Error removing context {key}: {str(e)}")
             # Still remove from tracking even if close fails
@@ -366,7 +426,13 @@ class ContextManager:
             memory_mb = process.memory_info().rss / 1024 / 1024
             cpu_percent = process.cpu_percent(interval=0.1)
 
-            return {
+            # Calculate average context age
+            current_time = time.time()
+            context_ages = [current_time - created_time
+                            for created_time in self.context_creation_times.values()]
+            avg_context_age = sum(context_ages) / len(context_ages) if context_ages else 0
+
+            stats = {
                 'active_contexts': len(self.active_contexts),
                 'total_contexts': len(self.contexts),
                 'max_contexts': self.max_contexts,
@@ -376,8 +442,40 @@ class ContextManager:
                 'cpu_percent': round(cpu_percent, 2),
                 'context_keys': [str(key) for key in self.contexts.keys()],
                 'avg_context_uses': round(sum(self.context_use_counts.values()) / len(
-                    self.context_use_counts)) if self.context_use_counts else 0
+                    self.context_use_counts)) if self.context_use_counts else 0,
+                'context_pool_health': {
+                    'total_creations': self.total_context_creations,
+                    'total_reuses': self.total_context_reuses,
+                    'failed_creations': self.failed_context_creations,
+                    'avg_context_age_seconds': round(avg_context_age, 2),
+                    'use_counts': list(self.context_use_counts.values()),
+                },
+                'performance_metrics': {
+                    'reuse_ratio': round(self.total_context_reuses /
+                                         (self.total_context_creations + 0.001), 2),
+                    'failure_rate': round(self.failed_context_creations /
+                                          (self.total_context_creations + 0.001), 2)
+                }
             }
+
+            return stats
         except Exception as e:
             logger.error(f"Error getting stats: {str(e)}")
             return {}
+
+    async def _validate_all_contexts(self) -> Dict[str, int]:
+        """Validate all contexts and return health metrics."""
+        valid_count = 0
+        invalid_count = 0
+
+        for context in self.active_contexts:
+            if await self.is_context_valid(context):
+                valid_count += 1
+            else:
+                invalid_count += 1
+
+        return {
+            'valid_contexts': valid_count,
+            'invalid_contexts': invalid_count,
+            'total_contexts': valid_count + invalid_count
+        }
