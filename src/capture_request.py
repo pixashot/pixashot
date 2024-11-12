@@ -61,7 +61,6 @@ class CaptureRequest(BaseModel):
                                                                                                   description="Platform for user agent generation")
     user_agent_browser: Optional[Literal['chrome', 'edge', 'firefox', 'safari']] = Field('chrome',
                                                                                          description="Browser for user agent generation")
-    custom_headers: Optional[Dict[str, str]] = Field(None, description="Custom headers to be sent with the request")
 
     # Format and response options
     format: Optional[Literal["png", "jpeg", "webp", "pdf", "html"]] = Field("png",
@@ -81,7 +80,7 @@ class CaptureRequest(BaseModel):
     dark_mode: Optional[bool] = Field(False, description="Enable dark mode for the screenshot")
 
     # Wait and timeout options
-    wait_for_timeout: Optional[PositiveInt] = Field(30000, description="Timeout in milliseconds to wait for page load")
+    wait_for_timeout: Optional[PositiveInt] = Field(8000, description="Timeout in milliseconds to wait for page load")
     wait_for_selector: Optional[str] = Field(None, description="Wait for a specific selector to appear in DOM")
     delay_capture: Optional[conint(ge=0)] = Field(0, description="Delay in milliseconds before taking the screenshot")
     wait_for_network: Literal["idle", "mostly_idle"] = Field(

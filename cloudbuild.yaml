@@ -1,4 +1,4 @@
-# Substitution variables can be overridden during build:
+# substitutions can be overridden during build:
 # $_REGION: Region for Artifact Registry and Cloud Run
 # $_SERVICE_NAME: Name of the Cloud Run service
 # $_REPOSITORY: Name of the Artifact Registry repository
@@ -9,8 +9,11 @@
 # $_CPU: CPU allocation (defaults to 1)
 # $_PORT: Container port (defaults to 8080)
 # $_TIMEOUT: Request timeout in seconds (defaults to 300)
-# $_ENV_VARS: Environment variables to set in Cloud Run (comma-separated key=value pairs)
-# $_ALLOW_UNAUTHENTICATED: Whether to allow unauthenticated access (true/false)
+# $_ENV_VARS: Environment variables to set in Cloud Run
+# $_BROWSER_MAX_CONTEXTS: Maximum number of browser contexts to maintain
+# $_BROWSER_CONTEXT_TIMEOUT: Timeout for browser contexts in seconds
+# $_BROWSER_MEMORY_LIMIT_MB: Memory limit in MB before context cleanup
+# $_AUTH_TOKEN: Authentication token for the service
 
 steps:
   # Build the Docker image
@@ -54,7 +57,7 @@ steps:
       - '--timeout'
       - '${_TIMEOUT}'
       - '--set-env-vars'
-      - '${_ENV_VARS}'
+      - 'CLOUD_RUN=true,BROWSER_MAX_CONTEXTS=${_BROWSER_MAX_CONTEXTS},BROWSER_CONTEXT_TIMEOUT=${_BROWSER_CONTEXT_TIMEOUT},BROWSER_MEMORY_LIMIT_MB=${_BROWSER_MEMORY_LIMIT_MB},AUTH_TOKEN=${_AUTH_TOKEN}'
       - '--allow-unauthenticated'
 
   # Add IAM policy binding to allow unauthenticated access
@@ -79,7 +82,10 @@ substitutions:
   _CPU: "1"
   _PORT: "8080"
   _TIMEOUT: "300"
-  _ENV_VARS: "CLOUD_RUN=true"
+  _BROWSER_MAX_CONTEXTS: "15"
+  _BROWSER_CONTEXT_TIMEOUT: "300"
+  _BROWSER_MEMORY_LIMIT_MB: "1500"
+  _AUTH_TOKEN: ""
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${_TAG}'

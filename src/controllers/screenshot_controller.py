@@ -10,6 +10,8 @@ class ScreenshotController(BaseBrowserController):
     MAX_VIEWPORT_HEIGHT = 16384
     NETWORK_IDLE_TIMEOUT_MS = 1000
     SCROLL_PAUSE_MS = 500
+    NETWORK_IDLE_TIMEOUT_MS = 500
+    SCROLL_PAUSE_MS = 100
 
     async def prepare_for_full_page_screenshot(self, page: Page, window_width: int):
         try:
@@ -34,7 +36,10 @@ class ScreenshotController(BaseBrowserController):
     async def _set_viewport_and_scroll(self, page: Page, width: int, height: int):
         try:
             await page.set_viewport_size({'width': width, 'height': height})
-            await page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)
+            # Only wait for network idle if we're not already waiting elsewhere
+            if not getattr(page, '_waited_for_network', False):
+                await page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)
+                setattr(page, '_waited_for_network', True)
             await page.evaluate('window.scrollTo(0, 0)')
             await page.wait_for_timeout(self.SCROLL_PAUSE_MS)
         except Exception as e:

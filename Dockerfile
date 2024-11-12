@@ -1,5 +1,5 @@
-# Use the official Playwright Python base image
-FROM mcr.microsoft.com/playwright/python:v1.35.0-focal
+# Use Playwright image
+FROM mcr.microsoft.com/playwright/python:v1.47.0
 
 # Set environment variables
 ENV PORT=8080 \

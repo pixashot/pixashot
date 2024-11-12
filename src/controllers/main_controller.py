@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from playwright.async_api import Page
 
@@ -19,31 +20,55 @@ class MainBrowserController:
     async def prepare_page(self, page: Page, options):
         try:
             await self.content_controller.prevent_horizontal_overflow(page)
-            if options.dark_mode:
-                await self.content_controller.apply_dark_mode(page)
-            if options.geolocation:
-                await self.geolocation_controller.set_geolocation(page, options.geolocation)
 
-            if options.wait_for_network == 'idle':
-                await self.interaction_controller.wait_for_network_idle(page, options.wait_for_timeout)
-            elif options.wait_for_network == 'mostly_idle':
-                await self.interaction_controller.wait_for_network_mostly_idle(page, options.wait_for_timeout)
+            # Combine network waits into a single operation
+            if options.wait_for_network in ('idle', 'mostly_idle'):
+                if options.wait_for_network == 'idle':
+                    await self.interaction_controller.wait_for_network_idle(
+                        page,
+                        min(options.wait_for_timeout, 5000)  # Cap at 5 seconds
+                    )
+                else:
+                    await self.interaction_controller.wait_for_network_mostly_idle(
+                        page,
+                        min(options.wait_for_timeout, 5000)  # Cap at 5 seconds
+                    )
+                setattr(page, '_waited_for_network', True)
+
+            # Parallel execution of independent operations
+            await asyncio.gather(
+                self._apply_dark_mode(page, options) if options.dark_mode else asyncio.sleep(0),
+                self._set_geolocation(page, options) if options.geolocation else asyncio.sleep(0)
+            )
 
             if options.wait_for_animation:
-                await self.interaction_controller.wait_for_animations(page)
+                await self.interaction_controller.wait_for_animations(page, timeout=2000)  # Cap animation wait at 2s
 
             if options.custom_js:
                 await self.content_controller.execute_custom_js(page, options.custom_js)
 
             if options.wait_for_selector:
-                await self.interaction_controller.wait_for_selector(page, options.wait_for_selector, options.wait_for_timeout)
+                await self.interaction_controller.wait_for_selector(
+                    page,
+                    options.wait_for_selector,
+                    min(options.wait_for_timeout, 5000)  # Cap at 5 seconds
+                )
 
-            await page.wait_for_timeout(500)
+            # Remove arbitrary delay
+            # await page.wait_for_timeout(500)  # This line is removed
 
             logger.info('Page prepared successfully')
         except Exception as e:
             logger.error(f"Error preparing page: {str(e)}")
             raise BrowserException(f"Failed to prepare page: {str(e)}")
+
+    async def _apply_dark_mode(self, page: Page, options):
+        if options.dark_mode:
+            await self.content_controller.apply_dark_mode(page)
+
+    async def _set_geolocation(self, page: Page, options):
+        if options.geolocation:
+            await self.geolocation_controller.set_geolocation(page, options.geolocation)
 
     async def goto_with_timeout(self, page: Page, url: str, timeout: float = 5.0):
         return await self.interaction_controller.goto_with_timeout(page, url, timeout)

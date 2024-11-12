@@ -122,7 +122,6 @@ iam.googleapis.com \
 4. **Configure Cloud Build Service Account Permissions**
 ```bash
 # Get your project number
-# Get your project number
 PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')
 
 # Configure both service accounts with required roles
@@ -182,6 +181,9 @@ gcloud artifacts repositories list
 | Max Instances | Maximum running instances | 10 | 5, 20 |
 | Port | Container port | 8080 | 3000, 8000 |
 | Timeout | Request timeout (seconds) | 300 | 600, 900 |
+| Browser Max Contexts | Maximum browser contexts | 15 | 20, 30 |
+| Browser Context Timeout | Context timeout (seconds) | 300 | 600, 900 |
+| Browser Memory Limit | Memory limit before cleanup (MB) | 1500 | 2000, 3000 |
 
 ### Default Configuration
 
@@ -196,7 +198,10 @@ _MEMORY: "2Gi"
 _CPU: "1"
 _PORT: "8080"
 _TIMEOUT: "300"
-_ENV_VARS: "CLOUD_RUN=true"
+_BROWSER_MAX_CONTEXTS: "15"
+_BROWSER_CONTEXT_TIMEOUT: "300"
+_BROWSER_MEMORY_LIMIT_MB: "1500"
+_AUTH_TOKEN: ""
 ```
 
 ### Basic Deployment
@@ -218,10 +223,13 @@ gcloud builds submit --config cloudbuild.yaml \
   --substitutions=\
 _REGION=us-east1,\
 _SERVICE_NAME=my-pixashot,\
-_MEMORY=2Gi,\
+_MEMORY=4Gi,\
 _CPU=2,\
 _MIN_INSTANCES=1,\
-_MAX_INSTANCES=5
+_MAX_INSTANCES=5,\
+_BROWSER_MAX_CONTEXTS=20,\
+_BROWSER_MEMORY_LIMIT_MB=3000,\
+_AUTH_TOKEN=$(openssl rand -hex 32)
 ```
 
 ## Authentication Setup
@@ -255,7 +263,7 @@ echo "Your authentication token is: $AUTH_TOKEN"
 
 # Deploy with token
 gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=_ENV_VARS="CLOUD_RUN=true,AUTH_TOKEN=$AUTH_TOKEN"
+  --substitutions=_AUTH_TOKEN=$AUTH_TOKEN
 ```
 
 2. **Update Authentication Token**
@@ -265,9 +273,8 @@ AUTH_TOKEN=$(openssl rand -hex 32)
 echo "Your new authentication token is: $AUTH_TOKEN"
 
 # Update service
-gcloud run services update pixashot \
-  --region=us-central1 \
-  --set-env-vars=AUTH_TOKEN=$AUTH_TOKEN
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_AUTH_TOKEN=$AUTH_TOKEN
 ```
 
 3. **Using Authentication in Requests**
@@ -293,7 +300,9 @@ gcloud builds submit --config cloudbuild.yaml \
 _SERVICE_NAME=pixashot-dev,\
 _MEMORY=512Mi,\
 _MIN_INSTANCES=0,\
-_ENV_VARS="CLOUD_RUN=true,DEBUG=true,ENVIRONMENT=development"
+_BROWSER_MAX_CONTEXTS=10,\
+_BROWSER_MEMORY_LIMIT_MB=1000,\
+_AUTH_TOKEN=$AUTH_TOKEN
 ```
 
 ### Production Environment
@@ -301,15 +310,25 @@ _ENV_VARS="CLOUD_RUN=true,DEBUG=true,ENVIRONMENT=development"
 gcloud builds submit --config cloudbuild.yaml \
   --substitutions=\
 _SERVICE_NAME=pixashot-prod,\
-_MEMORY=2Gi,\
+_MEMORY=4Gi,\
 _MIN_INSTANCES=1,\
-_ENV_VARS="CLOUD_RUN=true,DEBUG=false,ENVIRONMENT=production"
+_BROWSER_MAX_CONTEXTS=20,\
+_BROWSER_MEMORY_LIMIT_MB=3000,\
+_AUTH_TOKEN=$AUTH_TOKEN
 ```
 
-### Setting Multiple Environment Variables
+### Performance-Optimized Configuration
 ```bash
 gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=_ENV_VARS="CLOUD_RUN=true,AUTH_TOKEN=$AUTH_TOKEN,RATE_LIMIT_ENABLED=true"
+  --substitutions=\
+_MEMORY=8Gi,\
+_CPU=4,\
+_MIN_INSTANCES=2,\
+_MAX_INSTANCES=10,\
+_BROWSER_MAX_CONTEXTS=30,\
+_BROWSER_MEMORY_LIMIT_MB=6000,\
+_BROWSER_CONTEXT_TIMEOUT=600,\
+_AUTH_TOKEN=$AUTH_TOKEN
 ```
 
 ## Monitoring and Troubleshooting
@@ -334,34 +353,27 @@ gcloud builds list
 ### Common Issues and Solutions
 
 1. **Permission Issues**
-- Verify Cloud Build service account roles:
-```bash
-# Get your project number
-PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')
-
-# Re-grant necessary permissions
-gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
-    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
-    --role="roles/run.admin"
-
-gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
-    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
-    --role="roles/iam.serviceAccountUser"
-
-gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
-    --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
-    --role="roles/iam.serviceAccountTokenCreator"
-```
+- Verify Cloud Build service account roles
+- Ensure proper IAM bindings
+- Check service account permissions
 
 2. **Container Startup Issues**
 - Check service logs for startup errors
 - Verify environment variables
 - Review health check configuration
+- Check browser context initialization logs
 
-3. **Deployment Timeouts**
-- Increase timeout value in substitutions
-- Check resource allocations
-- Review network configuration
+3. **Memory Issues**
+- Adjust `BROWSER_MEMORY_LIMIT_MB`
+- Monitor memory usage through logs
+- Consider increasing container memory
+- Review context cleanup logs
+
+4. **Performance Issues**
+- Adjust `BROWSER_MAX_CONTEXTS`
+- Monitor context reuse rates
+- Check context timeout settings
+- Consider increasing CPU allocation
 
 ## Best Practices
 
@@ -377,6 +389,7 @@ gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
 - Monitor metrics
 - Adjust based on usage patterns
 - Use minimum instances strategically
+- Optimize browser context settings
 
 ### Version Management
 - Use meaningful tags
@@ -397,6 +410,7 @@ gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
 - Scale based on actual usage
 - Monitor and optimize resource allocation
 - Review cost reports regularly
+- Optimize browser context settings for efficiency
 
 ## Additional Resources
 
