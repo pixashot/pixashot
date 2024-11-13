@@ -1,12 +1,11 @@
 from playwright.async_api import Page, TimeoutError
 import logging
 from exceptions import BrowserException, TimeoutException
-from controllers.base_controller import BaseBrowserController
 
 logger = logging.getLogger(__name__)
 
 
-class ScreenshotController(BaseBrowserController):
+class ScreenshotController:
     MAX_VIEWPORT_HEIGHT = 16384
     NETWORK_IDLE_TIMEOUT_MS = 5000
     SCROLL_PAUSE_MS = 500
@@ -123,3 +122,36 @@ class ScreenshotController(BaseBrowserController):
         except Exception as e:
             logger.error(f"Error in prepare_for_full_page_screenshot: {str(e)}")
             logger.warning("Continuing with capture despite preparation errors...")
+
+    async def prepare_for_viewport_screenshot(self, page: Page, window_width: int, window_height: int):
+        """Prepare page for viewport-specific screenshot."""
+        try:
+            # Set viewport size
+            await page.set_viewport_size({
+                'width': window_width,
+                'height': window_height
+            })
+
+            # Wait for network idle with timeout
+            try:
+                await page.wait_for_load_state('networkidle', timeout=self.NETWORK_IDLE_TIMEOUT_MS)
+            except TimeoutError:
+                logger.warning("Network idle timeout reached during viewport preparation")
+
+            # Scroll to top of page
+            await page.evaluate('window.scrollTo(0, 0)')
+
+            # Brief pause to let the page settle
+            await page.wait_for_timeout(self.SCROLL_PAUSE_MS)
+
+        except Exception as e:
+            logger.error(f"Error in prepare_for_viewport_screenshot: {str(e)}")
+            logger.warning("Continuing with capture despite preparation errors...")
+
+    async def execute_custom_js(self, page: Page, custom_js: str):
+        """Execute custom JavaScript on the page."""
+        try:
+            await page.evaluate(custom_js)
+        except Exception as e:
+            logger.error(f"Error executing custom JavaScript: {str(e)}")
+            raise BrowserException(f"Failed to execute custom JavaScript: {str(e)}")

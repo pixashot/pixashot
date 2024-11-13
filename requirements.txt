@@ -13,3 +13,4 @@ validators
 pytest-asyncio
 pytest-cov
 structlog
+ua-generator
