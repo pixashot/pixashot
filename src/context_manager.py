@@ -1,42 +1,36 @@
 import os
 import logging
-from typing import Dict, List
-from playwright.async_api import async_playwright, Browser, BrowserContext
+from typing import List, Dict
+from playwright.async_api import Browser, BrowserContext
+from ua_generator import generate as generate_ua
 
 logger = logging.getLogger(__name__)
 
 
 class ContextManager:
-    def __init__(self, playwright=None):
-        self.playwright = playwright
-        self.browser = None
+    def __init__(self):
         self.context = None
+        self.browser = None
         self.extension_dir = os.path.join(os.path.dirname(__file__), 'extensions')
 
         # Read extension configuration from environment
         self.use_popup_blocker = os.getenv('USE_POPUP_BLOCKER', 'true').lower() == 'true'
         self.use_cookie_blocker = os.getenv('USE_COOKIE_BLOCKER', 'true').lower() == 'true'
-        self.use_ad_blocker = os.getenv('USE_AD_BLOCKER', 'true').lower() == 'true'
 
     def _get_extension_args(self) -> List[str]:
         """Get browser arguments for enabled extensions."""
         extensions = []
-
         if os.path.exists(self.extension_dir):
-            if self.use_popup_blocker:
-                popup_path = os.path.join(self.extension_dir, 'popup-off')
-                if os.path.exists(popup_path):
-                    extensions.append(popup_path)
+            extension_configs = [
+                ('popup-off', self.use_popup_blocker),
+                ('dont-care-cookies', self.use_cookie_blocker)
+            ]
 
-            if self.use_cookie_blocker:
-                cookie_path = os.path.join(self.extension_dir, 'dont-care-cookies')
-                if os.path.exists(cookie_path):
-                    extensions.append(cookie_path)
-
-            if self.use_ad_blocker:
-                ad_block_path = os.path.join(self.extension_dir, 'ublock-origin')
-                if os.path.exists(ad_block_path):
-                    extensions.append(ad_block_path)
+            for ext_name, is_enabled in extension_configs:
+                if is_enabled:
+                    ext_path = os.path.join(self.extension_dir, ext_name)
+                    if os.path.exists(ext_path):
+                        extensions.append(ext_path)
 
         if not extensions:
             return []
@@ -46,11 +40,37 @@ class ContextManager:
             *[f'--load-extension={ext}' for ext in extensions]
         ]
 
-    async def initialize(self, playwright):
-        """Initialize browser with configured extensions."""
-        try:
-            self.playwright = playwright
+    def _generate_headers(self, options) -> Dict[str, str]:
+        """Generate headers including user agent based on options."""
+        ua_options = {}
 
+        if hasattr(options, 'user_agent_device'):
+            ua_options['device'] = options.user_agent_device
+        if hasattr(options, 'user_agent_platform'):
+            ua_options['platform'] = options.user_agent_platform
+        if hasattr(options, 'user_agent_browser'):
+            ua_options['browser'] = options.user_agent_browser
+
+        # Generate a user agent with specified or default options
+        ua = generate_ua(**ua_options)
+
+        # Get all relevant headers from ua-generator
+        headers = ua.headers.copy()
+        headers.update({
+            'Sec-CH-UA': ua.ch.brands,
+            'Sec-CH-UA-Mobile': ua.ch.mobile,
+            'Sec-CH-UA-Platform': f'"{ua.ch.platform}"'
+        })
+
+        # Add any custom headers from options
+        if hasattr(options, 'custom_headers') and options.custom_headers:
+            headers.update(options.custom_headers)
+
+        return headers
+
+    async def initialize(self, playwright) -> BrowserContext:
+        """Initialize and return a configured browser context."""
+        try:
             # Base browser arguments
             browser_args = [
                 '--disable-features=site-per-process',
@@ -66,59 +86,20 @@ class ContextManager:
                 logger.info(f"Launching browser with extensions: {extension_args}")
 
             # Launch browser with combined arguments
-            self.browser = await self.playwright.chromium.launch(args=browser_args)
+            self.browser = await playwright.chromium.launch(args=browser_args)
 
-            # Create the shared context with standard settings
+            # Create context with minimal settings (will be configured per capture)
             self.context = await self.browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                device_scale_factor=1.0
             )
 
-            # Apply any extension-specific JavaScript
-            if self.use_popup_blocker or self.use_cookie_blocker or self.use_ad_blocker:
-                await self._setup_extension_scripts()
+            logger.info("Browser context initialized successfully with configured extensions")
+            return self.context
 
-            logger.info("Browser and context initialized successfully with configured extensions")
         except Exception as e:
-            logger.error(f"Failed to initialize browser: {str(e)}")
+            logger.error(f"Failed to initialize browser context: {str(e)}")
             raise
-
-    async def _setup_extension_scripts(self):
-        """Setup any additional scripts needed for extensions."""
-        if self.use_cookie_blocker:
-            await self.context.add_init_script("""
-                window.addEventListener('DOMContentLoaded', () => {
-                    // Basic cookie consent handler
-                    const commonSelectors = [
-                        '[aria-label*="cookie banner"]',
-                        '[class*="cookie-banner"]',
-                        '[id*="cookie-banner"]',
-                        '[class*="cookie-consent"]',
-                        '[id*="cookie-consent"]'
-                    ];
-
-                    commonSelectors.forEach(selector => {
-                        const element = document.querySelector(selector);
-                        if (element) element.remove();
-                    });
-                });
-            """)
-
-        if self.use_popup_blocker:
-            await self.context.add_init_script("""
-                // Basic popup blocker
-                window.open = function() { return null; };
-                window.addEventListener('load', () => {
-                    document.querySelectorAll('a[target="_blank"]')
-                        .forEach(a => a.setAttribute('target', '_self'));
-                });
-            """)
-
-    async def get_context(self, options) -> BrowserContext:
-        """Return the shared context."""
-        if not self.context:
-            await self.initialize(self.playwright)
-        return self.context
 
     async def close(self):
         """Clean up resources."""

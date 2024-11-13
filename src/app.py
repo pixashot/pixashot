@@ -18,26 +18,22 @@ from context_manager import ContextManager
 
 logger = logging.getLogger(__name__)
 
+# src/app.py (relevant section)
+
 class AppContainer:
     def __init__(self):
         self.playwright = None
         self.capture_service = None
         self.cache_manager = None
         self.rate_limiter = None
-        self.context_manager = None
 
     async def initialize(self):
         try:
             # Start playwright
             self.playwright = await async_playwright().start()
 
-            # Initialize context manager (simplified)
-            self.context_manager = ContextManager(self.playwright)
-            await self.context_manager.initialize(self.playwright)
-
             # Initialize capture service
             self.capture_service = CaptureService()
-            self.capture_service.context_manager = self.context_manager
             await self.capture_service.initialize(self.playwright)
 
             # Initialize cache manager
@@ -51,8 +47,6 @@ class AppContainer:
     async def close(self):
         if self.capture_service:
             await self.capture_service.close()
-        if self.context_manager:
-            await self.context_manager.close()
         if self.playwright:
             await self.playwright.stop()
 

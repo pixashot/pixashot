@@ -3,11 +3,11 @@ import time
 from playwright.async_api import Page
 from playwright._impl._errors import Error as PlaywrightError
 from exceptions import InteractionException, TimeoutException
-from controllers.base_controller import BaseBrowserController
 
 logger = logging.getLogger(__name__)
 
-class InteractionController(BaseBrowserController):
+
+class InteractionController:
     async def perform_interactions(self, page: Page, interactions: list):
         for step in interactions:
             try:
