@@ -16,6 +16,10 @@
 # $_AUTH_TOKEN: Authentication token for the service
 # $_MAX_REQUESTS_PER_WORKER: Maximum requests per worker before restart (defaults to 50)
 # $_WORKERS: Number of worker processes per instance (defaults to 4)
+# $_PROXY_SERVER: Proxy server address (optional)
+# $_PROXY_PORT: Proxy server port (optional)
+# $_PROXY_USERNAME: Proxy server username (optional)
+# $_PROXY_PASSWORD: Proxy server password (optional)
 
 steps:
   # Build the Docker image
@@ -59,7 +63,7 @@ steps:
       - '--timeout'
       - '${_TIMEOUT}'
       - '--set-env-vars'
-      - 'CLOUD_RUN=true,BROWSER_MAX_CONTEXTS=${_BROWSER_MAX_CONTEXTS},BROWSER_CONTEXT_TIMEOUT=${_BROWSER_CONTEXT_TIMEOUT},BROWSER_MEMORY_LIMIT_MB=${_BROWSER_MEMORY_LIMIT_MB},AUTH_TOKEN=${_AUTH_TOKEN},MAX_REQUESTS=${_MAX_REQUESTS_PER_WORKER},WORKERS=${_WORKERS}'
+      - 'CLOUD_RUN=true,BROWSER_MAX_CONTEXTS=${_BROWSER_MAX_CONTEXTS},BROWSER_CONTEXT_TIMEOUT=${_BROWSER_CONTEXT_TIMEOUT},BROWSER_MEMORY_LIMIT_MB=${_BROWSER_MEMORY_LIMIT_MB},AUTH_TOKEN=${_AUTH_TOKEN},MAX_REQUESTS=${_MAX_REQUESTS_PER_WORKER},WORKERS=${_WORKERS},PROXY_SERVER=${_PROXY_SERVER},PROXY_PORT=${_PROXY_PORT},PROXY_USERNAME=${_PROXY_USERNAME},PROXY_PASSWORD=${_PROXY_PASSWORD}'
       - '--allow-unauthenticated'
 
   # Add IAM policy binding to allow unauthenticated access
@@ -90,6 +94,10 @@ substitutions:
   _MAX_REQUESTS_PER_WORKER: "50"
   _WORKERS: "2"
   _AUTH_TOKEN: ""
+  _PROXY_SERVER: ""
+  _PROXY_PORT: ""
+  _PROXY_USERNAME: ""
+  _PROXY_PASSWORD: ""
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${_TAG}'
