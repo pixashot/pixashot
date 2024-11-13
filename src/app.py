@@ -31,14 +31,8 @@ class AppContainer:
             # Start playwright
             self.playwright = await async_playwright().start()
 
-            # Initialize context manager
-            context_manager_config = {
-                'max_contexts': int(os.getenv('BROWSER_MAX_CONTEXTS', '15')),
-                'context_timeout': int(os.getenv('BROWSER_CONTEXT_TIMEOUT', '300')),
-                'memory_limit_mb': int(os.getenv('BROWSER_MEMORY_LIMIT_MB', '1500')),
-                'playwright': self.playwright
-            }
-            self.context_manager = ContextManager(**context_manager_config)
+            # Initialize context manager (simplified)
+            self.context_manager = ContextManager(self.playwright)
             await self.context_manager.initialize(self.playwright)
 
             # Initialize capture service
@@ -64,23 +58,11 @@ class AppContainer:
 
 
 def create_app():
-    # Configure logging
     dictConfig(get_logging_config())
-
     app = Quart(__name__)
 
-    # Get configuration from environment with defaults
-    context_manager_config = {
-        'max_contexts': int(os.getenv('BROWSER_MAX_CONTEXTS', '15')),
-        'context_timeout': int(os.getenv('BROWSER_CONTEXT_TIMEOUT', '300')),
-        'memory_limit_mb': int(os.getenv('BROWSER_MEMORY_LIMIT_MB', '1500'))
-    }
-
-    # Store container in app config instead of directly on app
+    # Create container with just the essentials
     container = AppContainer()
-
-    # Initialize context manager with configuration
-    container.context_manager = ContextManager(**context_manager_config)
     app.config['container'] = container
 
     # Initialize rate limiter
@@ -88,8 +70,6 @@ def create_app():
 
     # Configure caching
     app.config['CACHING_ENABLED'] = config.CACHE_MAX_SIZE > 0
-
-    # Log caching status
     if app.config['CACHING_ENABLED']:
         app.logger.info(f"Caching enabled with max size: {config.CACHE_MAX_SIZE}")
     else:

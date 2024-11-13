@@ -1,5 +1,7 @@
 import logging
-from playwright.async_api import Page, TimeoutError
+import time
+from playwright.async_api import Page
+from playwright._impl._errors import Error as PlaywrightError
 from exceptions import InteractionException, TimeoutException
 from controllers.base_controller import BaseBrowserController
 
@@ -56,38 +58,60 @@ class InteractionController(BaseBrowserController):
             logger.warning(f"Timeout waiting for network idle: {timeout}ms")
             raise TimeoutException(f"Network did not become idle within {timeout}ms")
 
-    async def wait_for_network_mostly_idle(self, page: Page, timeout: int, idle_threshold: int = 2, check_interval: int = 100):
-        async def get_network_activity():
-            return await page.evaluate('''() => {
-                const resources = performance.getEntriesByType('resource');
-                const recentResources = resources.filter(r => r.responseEnd > performance.now() - 1000);
-                const pendingRequests = window.performance.getEntriesByType('resource').filter(r => !r.responseEnd).length;
-                return {
-                    recentRequests: recentResources.length,
-                    pendingRequests: pendingRequests
-                };
-            }''')
+    async def wait_for_network_mostly_idle(self, page: Page, timeout: int, idle_threshold: int = 2,
+                                           check_interval: int = 100):
+        """Wait for network activity to become mostly idle with improved error handling."""
+        try:
+            async def check_network_activity():
+                try:
+                    return await page.evaluate('''() => {
+                        return {
+                            pendingRequests: window.performance.getEntriesByType('resource')
+                                .filter(r => !r.responseEnd).length,
+                            recentRequests: window.performance.getEntriesByType('resource')
+                                .filter(r => r.responseEnd > performance.now() - 1000).length
+                        };
+                    }''')
+                except Exception:
+                    return {'pendingRequests': 0, 'recentRequests': 0}
 
-        start_time = await page.evaluate('() => performance.now()')
-        previous_activity = await get_network_activity()
+            start_time = time.time()
+            previous_activity = await check_network_activity()
 
-        while await page.evaluate('() => performance.now()') - start_time < timeout:
-            await page.wait_for_timeout(check_interval)
-            current_activity = await get_network_activity()
+            while time.time() - start_time < timeout / 1000:  # Convert timeout to seconds
+                try:
+                    # Use shorter wait intervals
+                    await page.wait_for_timeout(min(check_interval, 50))
 
-            activity_delta = (
-                abs(current_activity['recentRequests'] - previous_activity['recentRequests']) +
-                abs(current_activity['pendingRequests'] - previous_activity['pendingRequests'])
-            )
+                    current_activity = await check_network_activity()
 
-            if activity_delta <= idle_threshold:
-                logger.info("Network considered mostly idle")
-                return
+                    activity_delta = (
+                            abs(current_activity['recentRequests'] - previous_activity['recentRequests']) +
+                            abs(current_activity['pendingRequests'] - previous_activity['pendingRequests'])
+                    )
 
-            previous_activity = current_activity
+                    if activity_delta <= idle_threshold:
+                        logger.debug("Network considered mostly idle")
+                        return
 
-        logger.warning(f"Network did not become mostly idle within {timeout}ms")
-        raise TimeoutException(f"Network did not become mostly idle within {timeout}ms")
+                    previous_activity = current_activity
+
+                except PlaywrightError as e:
+                    # Handle specific Playwright errors
+                    if "Target closed" in str(e) or "Target page, context or browser has been closed" in str(e):
+                        logger.warning("Page closed during network wait, considering as idle")
+                        return
+                    raise
+                except Exception as e:
+                    logger.warning(f"Error during network activity check: {str(e)}")
+                    # Continue checking despite errors
+
+            logger.warning(f"Network did not become mostly idle within {timeout}ms")
+            # Don't raise an exception, just return
+
+        except Exception as e:
+            logger.error(f"Error in wait_for_network_mostly_idle: {str(e)}")
+            # Don't raise an exception, just return
 
     async def wait_for_selector(self, page: Page, selector: str, timeout: int):
         try:

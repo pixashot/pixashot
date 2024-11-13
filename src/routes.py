@@ -5,7 +5,6 @@ import random
 import tempfile
 import time
 from datetime import datetime
-from io import BytesIO
 from urllib.parse import parse_qs, urlparse
 import psutil
 
@@ -25,10 +24,14 @@ logger = logging.getLogger(__name__)
 
 
 def register_routes(app):
+    def is_development():
+        """Check if we're running in development mode"""
+        return app.debug or os.environ.get('FLASK_ENV') == 'development'
+
     @app.route('/capture', methods=['POST', 'GET'])
     async def capture():
         """
-        Handle screenshot capture requests with Cloud Run compatible error handling.
+        Handle screenshot capture requests with development-aware error handling.
         """
         try:
             # Parse request parameters
@@ -109,6 +112,8 @@ def register_routes(app):
                 raise e
 
         except ValueError as e:
+            if is_development():
+                raise  # Re-raise the exception in development mode
             logger.error(f"Invalid request parameters: {str(e)}")
             return jsonify({
                 'status': 'error',
@@ -117,6 +122,9 @@ def register_routes(app):
             }), 400
 
         except Exception as e:
+            if is_development():
+                raise  # Re-raise the exception in development mode
+
             logger.exception("Error during capture")
 
             error_response = {
@@ -148,7 +156,6 @@ def register_routes(app):
                     'call_stack': getattr(e, 'message', str(e))
                 })
 
-            # Ensure we're returning a proper JSON response
             return jsonify(error_response), 500
 
     @app.route('/health')
@@ -171,6 +178,8 @@ def register_routes(app):
             }, 200
 
         except Exception as e:
+            if is_development():
+                raise  # Re-raise the exception in development mode
             current_app.logger.error(f"Health check failed: {str(e)}")
             return {
                 'status': 'unhealthy',

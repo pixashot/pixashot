@@ -18,49 +18,70 @@ class MainBrowserController:
         self.geolocation_controller = GeolocationController()
 
     async def prepare_page(self, page: Page, options):
+        """Prepare page with improved error handling and more resilient network waiting."""
         try:
             await self.content_controller.prevent_horizontal_overflow(page)
 
-            # Combine network waits into a single operation
+            # Combine network waits into a single operation with better error handling
             if options.wait_for_network in ('idle', 'mostly_idle'):
-                if options.wait_for_network == 'idle':
-                    await self.interaction_controller.wait_for_network_idle(
-                        page,
-                        min(options.wait_for_timeout, 5000)  # Cap at 5 seconds
-                    )
-                else:
-                    await self.interaction_controller.wait_for_network_mostly_idle(
-                        page,
-                        min(options.wait_for_timeout, 5000)  # Cap at 5 seconds
-                    )
-                setattr(page, '_waited_for_network', True)
+                try:
+                    # Use shorter timeout for network wait
+                    timeout = min(options.wait_for_timeout, 5000)
+                    if options.wait_for_network == 'idle':
+                        try:
+                            await self.interaction_controller.wait_for_network_idle(page, timeout)
+                        except Exception as e:
+                            logger.warning(f"Network idle wait failed, continuing: {str(e)}")
+                    else:
+                        try:
+                            await self.interaction_controller.wait_for_network_mostly_idle(page, timeout)
+                        except Exception as e:
+                            logger.warning(f"Network mostly idle wait failed, continuing: {str(e)}")
+                    setattr(page, '_waited_for_network', True)
+                except Exception as e:
+                    logger.warning(f"Network wait failed, continuing with page preparation: {str(e)}")
 
-            # Parallel execution of independent operations
-            await asyncio.gather(
-                self._apply_dark_mode(page, options) if options.dark_mode else asyncio.sleep(0),
-                self._set_geolocation(page, options) if options.geolocation else asyncio.sleep(0)
-            )
+            # Execute independent operations in parallel with error handling
+            tasks = []
+            if options.dark_mode:
+                tasks.append(self._apply_dark_mode(page, options))
+            if options.geolocation:
+                tasks.append(self._set_geolocation(page, options))
+
+            if tasks:
+                try:
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                except Exception as e:
+                    logger.warning(f"Some page preparation tasks failed: {str(e)}")
 
             if options.wait_for_animation:
-                await self.interaction_controller.wait_for_animations(page, timeout=2000)  # Cap animation wait at 2s
+                try:
+                    await self.interaction_controller.wait_for_animations(page, timeout=2000)
+                except Exception as e:
+                    logger.warning(f"Animation wait failed, continuing: {str(e)}")
 
             if options.custom_js:
-                await self.content_controller.execute_custom_js(page, options.custom_js)
+                try:
+                    await self.content_controller.execute_custom_js(page, options.custom_js)
+                except Exception as e:
+                    logger.warning(f"Custom JS execution failed: {str(e)}")
 
             if options.wait_for_selector:
-                await self.interaction_controller.wait_for_selector(
-                    page,
-                    options.wait_for_selector,
-                    min(options.wait_for_timeout, 5000)  # Cap at 5 seconds
-                )
-
-            # Remove arbitrary delay
-            # await page.wait_for_timeout(500)  # This line is removed
+                try:
+                    await self.interaction_controller.wait_for_selector(
+                        page,
+                        options.wait_for_selector,
+                        min(options.wait_for_timeout, 5000)
+                    )
+                except Exception as e:
+                    logger.warning(f"Selector wait failed: {str(e)}")
 
             logger.info('Page prepared successfully')
         except Exception as e:
             logger.error(f"Error preparing page: {str(e)}")
-            raise BrowserException(f"Failed to prepare page: {str(e)}")
+            # Convert the error to a BrowserException but include the original error details
+            error_message = f"Failed to prepare page: {str(e)}"
+            raise BrowserException(error_message) from e
 
     async def _apply_dark_mode(self, page: Page, options):
         if options.dark_mode:
