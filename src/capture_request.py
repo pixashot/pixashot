@@ -31,14 +31,6 @@ class InteractionStep(BaseModel):
     wait_for: Optional[WaitForOption] = Field(None, description="Specifies what to wait for")
 
 
-def validate_url_or_html_content(v):
-    if not v.get('url') and not v.get('html_content'):
-        raise ValueError('Either url or html_content must be provided')
-    if v.get('url') and v.get('html_content'):
-        raise ValueError('Cannot provide both url and html_content')
-    return v
-
-
 class CaptureRequest(BaseModel):
     # Basic options
     url: Optional[HttpUrl] = Field(None, description="URL of the site to take a screenshot of")
@@ -55,22 +47,16 @@ class CaptureRequest(BaseModel):
 
     # Random user agent settings
     use_random_user_agent: Optional[bool] = Field(False, description="Use a random user agent")
-    user_agent_device: Optional[Literal['desktop', 'mobile']] = Field(None,
-                                                                      description="Device type for user agent generation")
-    user_agent_platform: Optional[Literal['windows', 'macos', 'ios', 'linux', 'android']] = Field(None,
-                                                                                                  description="Platform for user agent generation")
-    user_agent_browser: Optional[Literal['chrome', 'edge', 'firefox', 'safari']] = Field('chrome',
-                                                                                         description="Browser for user agent generation")
+    user_agent_device: Optional[Literal['desktop', 'mobile']] = Field(None, description="Device type for user agent generation")
+    user_agent_platform: Optional[Literal['windows', 'macos', 'ios', 'linux', 'android']] = Field(None, description="Platform for user agent generation")
+    user_agent_browser: Optional[Literal['chrome', 'edge', 'firefox', 'safari']] = Field('chrome', description="Browser for user agent generation")
 
     # Format and response options
-    format: Optional[Literal["png", "jpeg", "webp", "pdf", "html"]] = Field("png",
-                                                                            description="Response format: png, jpeg, webp, pdf, html")
-    response_type: Optional[Literal["by_format", "empty", "json"]] = Field("by_format",
-                                                                           description="Response type: by_format, empty, json")
+    format: Optional[Literal["png", "jpeg", "webp", "pdf", "html"]] = Field("png", description="Response format: png, jpeg, webp, pdf, html")
+    response_type: Optional[Literal["by_format", "empty", "json"]] = Field("by_format", description="Response type: by_format, empty, json")
 
     # Interactions
-    interactions: Optional[List[InteractionStep]] = Field(None,
-                                                          description="List of interaction steps to perform before capturing")
+    interactions: Optional[List[InteractionStep]] = Field(None, description="List of interaction steps to perform before capturing")
     wait_for_animation: Optional[bool] = Field(False, description="Wait for animations to complete before capturing")
 
     # Image options
@@ -88,22 +74,13 @@ class CaptureRequest(BaseModel):
         description="Specify whether to wait for the network to be mostly idle or completely idle"
     )
 
-    # JavaScript and extension options
-    custom_js: Optional[str] = Field(None,
-                                     description="Custom JavaScript to inject and execute before taking the screenshot")
-    use_popup_blocker: Optional[bool] = Field(True, description="Use the popup blocker extension")
-    use_cookie_blocker: Optional[bool] = Field(True, description="Use the cookie consent blocker extension")
+    # JavaScript options
+    custom_js: Optional[str] = Field(None, description="Custom JavaScript to inject and execute before taking the screenshot")
 
     # Network and resource options
     ignore_https_errors: Optional[bool] = Field(True, description="Ignore HTTPS errors during navigation")
     block_media: Optional[bool] = Field(False, description="Block images, video, and audio from loading")
     custom_headers: Optional[Dict[str, str]] = Field(None, description="Custom headers to be sent with the request")
-
-    # Proxy options
-    proxy_server: Optional[str] = Field(None, description="Proxy server address")
-    proxy_port: Optional[conint(ge=1, le=65535)] = Field(None, description="Proxy server port")
-    proxy_username: Optional[str] = Field(None, description="Proxy server username")
-    proxy_password: Optional[str] = Field(None, description="Proxy server password")
 
     # Geolocation options
     geolocation: Optional[Geolocation] = Field(None, description="Geolocation to spoof (latitude, longitude, accuracy)")
@@ -112,8 +89,7 @@ class CaptureRequest(BaseModel):
     pdf_print_background: Optional[bool] = Field(True, description="Print background graphics in PDF")
     pdf_scale: Optional[PositiveFloat] = Field(1.0, description="Scale of the webpage rendering")
     pdf_page_ranges: Optional[str] = Field(None, description="Paper ranges to print, e.g., '1-5, 8, 11-13'")
-    pdf_format: Optional[Literal["A4", "Letter", "Legal"]] = Field("A4",
-                                                                   description="Paper format, e.g., 'A4', 'Letter'")
+    pdf_format: Optional[Literal["A4", "Letter", "Legal"]] = Field("A4", description="Paper format, e.g., 'A4', 'Letter'")
     pdf_width: Optional[str] = Field(None, description="Paper width, accepts values labeled with units")
     pdf_height: Optional[str] = Field(None, description="Paper height, accepts values labeled with units")
 

@@ -1,8 +1,10 @@
 import os
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 from playwright.async_api import Browser, BrowserContext
 from ua_generator import generate as generate_ua
+from config import config
+from exceptions import BrowserException
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,27 @@ class ContextManager:
         # Read extension configuration from environment
         self.use_popup_blocker = os.getenv('USE_POPUP_BLOCKER', 'true').lower() == 'true'
         self.use_cookie_blocker = os.getenv('USE_COOKIE_BLOCKER', 'true').lower() == 'true'
+
+        # Initialize proxy configuration from environment
+        self.default_proxy_config = self._get_proxy_config()
+
+    def _get_proxy_config(self) -> Optional[Dict[str, str]]:
+        """Get proxy configuration from environment variables."""
+        if config.PROXY_SERVER and config.PROXY_PORT:
+            proxy_config = {
+                'server': f'{config.PROXY_SERVER}:{config.PROXY_PORT}'
+            }
+
+            # Add authentication if provided
+            if config.PROXY_USERNAME and config.PROXY_PASSWORD:
+                proxy_config.update({
+                    'username': config.PROXY_USERNAME,
+                    'password': config.PROXY_PASSWORD
+                })
+
+            logger.info(f"Using proxy configuration: {config.PROXY_SERVER}:{config.PROXY_PORT}")
+            return proxy_config
+        return None
 
     def _get_extension_args(self) -> List[str]:
         """Get browser arguments for enabled extensions."""
@@ -88,22 +111,34 @@ class ContextManager:
             # Launch browser with combined arguments
             self.browser = await playwright.chromium.launch(args=browser_args)
 
-            # Create context with minimal settings (will be configured per capture)
-            self.context = await self.browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                device_scale_factor=1.0
-            )
+            # Create initial context with default proxy if configured
+            context_options = {
+                'viewport': {'width': 1920, 'height': 1080},
+                'device_scale_factor': 1.0
+            }
 
-            logger.info("Browser context initialized successfully with configured extensions")
+            if self.default_proxy_config:
+                context_options['proxy'] = self.default_proxy_config
+
+            self.context = await self.browser.new_context(**context_options)
+
+            # Log successful initialization
+            proxy_info = "with proxy" if self.default_proxy_config else "without proxy"
+            logger.info(f"Browser context initialized successfully {proxy_info}")
+
             return self.context
 
         except Exception as e:
             logger.error(f"Failed to initialize browser context: {str(e)}")
-            raise
+            raise BrowserException(f"Browser context initialization failed: {str(e)}")
 
     async def close(self):
         """Clean up resources."""
-        if self.context:
-            await self.context.close()
-        if self.browser:
-            await self.browser.close()
+        try:
+            if self.context:
+                await self.context.close()
+            if self.browser:
+                await self.browser.close()
+        except Exception as e:
+            logger.error(f"Error during context cleanup: {str(e)}")
+            # Don't re-raise as this is cleanup code
