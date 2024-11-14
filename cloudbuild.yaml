@@ -9,17 +9,19 @@
 # $_CPU: CPU allocation (defaults to 1)
 # $_PORT: Container port (defaults to 8080)
 # $_TIMEOUT: Request timeout in seconds (defaults to 300)
-# $_ENV_VARS: Environment variables to set in Cloud Run
-# $_BROWSER_MAX_CONTEXTS: Maximum number of browser contexts to maintain
-# $_BROWSER_CONTEXT_TIMEOUT: Timeout for browser contexts in seconds
-# $_BROWSER_MEMORY_LIMIT_MB: Memory limit in MB before context cleanup
-# $_AUTH_TOKEN: Authentication token for the service
 # $_MAX_REQUESTS_PER_WORKER: Maximum requests per worker before restart (defaults to 50)
 # $_WORKERS: Number of worker processes per instance (defaults to 4)
 # $_PROXY_SERVER: Proxy server address (optional)
 # $_PROXY_PORT: Proxy server port (optional)
 # $_PROXY_USERNAME: Proxy server username (optional)
 # $_PROXY_PASSWORD: Proxy server password (optional)
+# $_USE_POPUP_BLOCKER: Enable/disable popup blocker extension (defaults to true)
+# $_USE_COOKIE_BLOCKER: Enable/disable cookie consent blocker extension (defaults to true)
+# $_RATE_LIMIT_ENABLED: Enable/disable rate limiting (defaults to false)
+# $_RATE_LIMIT_CAPTURE: Rate limit for capture endpoint (defaults to "1 per second")
+# $_RATE_LIMIT_SIGNED: Rate limit for signed URLs (defaults to "5 per second")
+# $_AUTH_TOKEN: Authentication token for bearer auth and signed URLs
+# $_CACHE_MAX_SIZE: Maximum size for response caching (defaults to 0, disabled)
 
 steps:
   # Build the Docker image
@@ -63,7 +65,7 @@ steps:
       - '--timeout'
       - '${_TIMEOUT}'
       - '--set-env-vars'
-      - 'CLOUD_RUN=true,BROWSER_MAX_CONTEXTS=${_BROWSER_MAX_CONTEXTS},BROWSER_CONTEXT_TIMEOUT=${_BROWSER_CONTEXT_TIMEOUT},BROWSER_MEMORY_LIMIT_MB=${_BROWSER_MEMORY_LIMIT_MB},AUTH_TOKEN=${_AUTH_TOKEN},MAX_REQUESTS=${_MAX_REQUESTS_PER_WORKER},WORKERS=${_WORKERS},PROXY_SERVER=${_PROXY_SERVER},PROXY_PORT=${_PROXY_PORT},PROXY_USERNAME=${_PROXY_USERNAME},PROXY_PASSWORD=${_PROXY_PASSWORD}'
+      - 'CLOUD_RUN=true,AUTH_TOKEN=${_AUTH_TOKEN},MAX_REQUESTS=${_MAX_REQUESTS_PER_WORKER},WORKERS=${_WORKERS},PROXY_SERVER=${_PROXY_SERVER},PROXY_PORT=${_PROXY_PORT},PROXY_USERNAME=${_PROXY_USERNAME},PROXY_PASSWORD=${_PROXY_PASSWORD},USE_POPUP_BLOCKER=${_USE_POPUP_BLOCKER},USE_COOKIE_BLOCKER=${_USE_COOKIE_BLOCKER},RATE_LIMIT_ENABLED=${_RATE_LIMIT_ENABLED},RATE_LIMIT_CAPTURE=${_RATE_LIMIT_CAPTURE},RATE_LIMIT_SIGNED=${_RATE_LIMIT_SIGNED},CACHE_MAX_SIZE=${_CACHE_MAX_SIZE}'
       - '--allow-unauthenticated'
 
   # Add IAM policy binding to allow unauthenticated access
@@ -88,9 +90,6 @@ substitutions:
   _CPU: "1"
   _PORT: "8080"
   _TIMEOUT: "300"
-  _BROWSER_MAX_CONTEXTS: "15"
-  _BROWSER_CONTEXT_TIMEOUT: "300"
-  _BROWSER_MEMORY_LIMIT_MB: "1500"
   _MAX_REQUESTS_PER_WORKER: "50"
   _WORKERS: "2"
   _AUTH_TOKEN: ""
@@ -98,6 +97,12 @@ substitutions:
   _PROXY_PORT: ""
   _PROXY_USERNAME: ""
   _PROXY_PASSWORD: ""
+  _USE_POPUP_BLOCKER: "true"
+  _USE_COOKIE_BLOCKER: "true"
+  _RATE_LIMIT_ENABLED: "false"
+  _RATE_LIMIT_CAPTURE: "1 per second"
+  _RATE_LIMIT_SIGNED: "5 per second"
+  _CACHE_MAX_SIZE: "0"
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${_TAG}'
